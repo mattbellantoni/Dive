@@ -327,12 +327,15 @@
                 background: rgba(0,0,0,0.92) !important;
             }
 
-            /* Right box: Winds Aloft */
+            /* Right box: Winds Aloft — hidden by default on mobile, shown only preflight */
             #winds-aloft-panel {
-                display: block !important; position: fixed !important;
+                display: none !important; position: fixed !important;
                 right: 4px !important; bottom: 4px !important; left: auto !important; top: auto !important;
                 width: 28vw; max-width: 130px; font-size: 8px; padding: 5px 6px;
                 pointer-events: none;
+            }
+            #winds-aloft-panel.preflight {
+                display: block !important;
             }
             #winds-aloft-panel h4 { font-size: 7px; margin-bottom: 3px; }
             .wa-row { padding: 1px 2px; }
@@ -471,6 +474,14 @@
 
 <!-- RIGHT PANEL — Jump & Canopy -->
 <div class="panel panel-right">
+    <h3>Dropzone</h3>
+    <div class="control-group">
+        <select id="settings-dz-select" style="width:100%;padding:6px 8px;border-radius:6px;background:#1e293b;color:#e2e8f0;border:1px solid #475569;font-size:12px;">
+            <option value="">— Select a dropzone —</option>
+        </select>
+        <div id="settings-dz-info" style="font-size:10px;opacity:0.5;margin-top:4px;"></div>
+    </div>
+    <hr>
     <h3>Jumper Setup</h3>
     <div class="control-group">
         <label><span>Body Weight</span><span class="val" id="body-wt-val">155 lbs</span></label>
@@ -696,7 +707,7 @@
 
 <!-- Mobile controls -->
 <button id="mobile-start-btn">Start Jump</button>
-<div id="mobile-change-dz">&#x2190;</div>
+<div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -959,6 +970,31 @@ function initDZMap() {
         opt.textContent = dz.name;
         select.appendChild(opt);
     });
+
+    // Populate settings panel DZ dropdown
+    const settingsDzSelect = document.getElementById('settings-dz-select');
+    if (settingsDzSelect) {
+        SAVED_DZS.forEach((dz, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = dz.name;
+            settingsDzSelect.appendChild(opt);
+        });
+        settingsDzSelect.addEventListener('change', () => {
+            const idx = parseInt(settingsDzSelect.value);
+            if (isNaN(idx)) return;
+            const dz = SAVED_DZS[idx];
+            selectedDZ = { lat: dz.lat, lng: dz.lng, elevation: dz.elev };
+            const infoEl = document.getElementById('settings-dz-info');
+            if (infoEl) infoEl.textContent = `${dz.lat.toFixed(4)}, ${dz.lng.toFixed(4)} · ${Math.round(dz.elev * CONFIG.M_TO_FT)} ft MSL`;
+            // Re-initialize simulator with new DZ
+            document.getElementById('dz-selector').classList.add('hidden');
+            document.getElementById('dz-badge').textContent = `DZ: ${selectedDZ.lat.toFixed(3)}, ${selectedDZ.lng.toFixed(3)}`;
+            initSimulator(selectedDZ);
+            saveSettings();
+            setTimeout(() => fetchLiveWinds(), 500);
+        });
+    }
 }
 
 window.selectSavedDZ = function() {
@@ -993,6 +1029,28 @@ window.confirmDZ = function() {
     saveSettings();
     // Auto-load live winds for the selected DZ
     setTimeout(() => fetchLiveWinds(), 500);
+    // Sync settings panel DZ dropdown
+    syncSettingsDzDropdown();
+};
+
+window.syncSettingsDzDropdown = function() {
+    const settingsDzSelect = document.getElementById('settings-dz-select');
+    const infoEl = document.getElementById('settings-dz-info');
+    if (!settingsDzSelect || !selectedDZ) return;
+    // Find matching saved DZ by lat/lng
+    let matched = -1;
+    SAVED_DZS.forEach((dz, i) => {
+        if (Math.abs(dz.lat - selectedDZ.lat) < 0.001 && Math.abs(dz.lng - selectedDZ.lng) < 0.001) matched = i;
+    });
+    settingsDzSelect.value = matched >= 0 ? matched : '';
+    if (infoEl) {
+        if (matched >= 0) {
+            const dz = SAVED_DZS[matched];
+            infoEl.textContent = `${dz.lat.toFixed(4)}, ${dz.lng.toFixed(4)} · ${Math.round(dz.elev * CONFIG.M_TO_FT)} ft MSL`;
+        } else {
+            infoEl.textContent = `${selectedDZ.lat.toFixed(4)}, ${selectedDZ.lng.toFixed(4)} · ${Math.round((selectedDZ.elevation || 0) * CONFIG.M_TO_FT)} ft MSL`;
+        }
+    }
 };
 
 window.showDZSelector = function() {
@@ -5682,7 +5740,10 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
     const showPanel = !isRunning; // winds aloft only pre-flight
     const showIndicator = phase === 'aircraft' || phase === 'freefall' || phase === 'canopy';
 
-    panel.style.setProperty('display', showPanel ? 'block' : 'none', 'important');
+    // On mobile, visibility is controlled by .preflight class in CSS; on desktop use inline style
+    if (!window.isMobileDevice) {
+        panel.style.setProperty('display', showPanel ? 'block' : 'none', 'important');
+    }
     indicator.style.display = showIndicator ? 'block' : 'none';
 
     // Winds aloft table — fixed altitude levels with direction, speed, gusts
@@ -5884,7 +5945,7 @@ function gameLoop(timestamp) {
             ui.showLandingScore(physics, canopyPerf);
             sceneManager.orbitControls.target.set(physics.position.x, 0, physics.position.z);
             isRunning = false;
-            document.getElementById('winds-aloft-panel').style.display = 'none';
+            if (!window.isMobileDevice) document.getElementById('winds-aloft-panel').style.display = 'none';
             document.getElementById('wind-indicator').style.display = 'none';
         }
     } else {
@@ -6232,18 +6293,15 @@ function setupTouchControls() {
         if (flipBtnEl2) flipBtnEl2.style.display = (physics && physics.phase === 'canopy') ? 'flex' : 'none';
         // Mobile start, change DZ, and winds aloft visibility
         const startBtn = document.getElementById('mobile-start-btn');
-        const changeDzBtn = document.getElementById('mobile-change-dz');
         const waPanel = document.getElementById('winds-aloft-panel');
         const preflight = !isRunning && simInitialized;
         if (startBtn) startBtn.style.display = preflight ? 'block' : 'none';
-        if (changeDzBtn) changeDzBtn.style.display = preflight ? 'block' : 'none';
         // Winds aloft: large on right during preflight, hidden during flight
         if (waPanel) {
             if (preflight) {
                 waPanel.classList.add('preflight');
             } else {
                 waPanel.classList.remove('preflight');
-                if (isRunning) waPanel.style.display = 'none';
             }
         }
     }, 200);
@@ -6557,6 +6615,7 @@ if (hadCachedDZ && selectedDZ) {
         document.getElementById('dz-selector').classList.add('hidden');
         document.getElementById('dz-badge').textContent = `DZ: ${selectedDZ.lat.toFixed(3)}, ${selectedDZ.lng.toFixed(3)}`;
         initSimulator(selectedDZ);
+        syncSettingsDzDropdown();
         setTimeout(() => {
             try {
                 updateWindFromUI();
