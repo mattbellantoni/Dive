@@ -718,7 +718,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.55 &middot; Jun 12, 2026</div>
+<div id="version-badge">v1.56 &middot; Jun 12, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -5313,7 +5313,7 @@ class SceneManager {
     }
 
     render() {
-        if (!fpvMode) this.orbitControls.update();
+        if (!fpvMode && !window._cameraFlipped) this.orbitControls.update();
         // Keep sky sphere centered on camera so it never clips
         if (this.skyMesh) this.skyMesh.position.copy(this.camera.position);
         this.renderer.render(this.scene, this.camera);
@@ -6065,24 +6065,25 @@ function gameLoop(timestamp) {
     if (window._cameraFlipped && isCanopy && sceneManager) {
         const h = physics.heading || 0;
         sceneManager.orbitControls.enabled = false;
-        // Feet-down POV: camera at jumper's chest, tilted to look straight down at the earth.
-        // True straight-down view: camera at jumper's waist, looking 180° down (directly at earth).
-        // Tiny backward offset so the boot tips are just visible at the bottom edge of the frame.
+        // True FPV looking straight down: like a chest-mount GoPro pointed at your feet.
+        // Camera behind & below jumper center so boots appear at top of frame,
+        // ground fills the rest — shows exactly what you're flying over.
         const jx = sceneManager.skydiver.position.x;
         const jy = sceneManager.skydiver.position.y;
         const jz = sceneManager.skydiver.position.z;
         const fwdX = Math.sin(h);
         const fwdZ = Math.cos(h);
-        // Camera at jumper center, nudged backward along heading so toes peek into frame
-        const camX = jx - fwdX * 0.15;
-        const camY = jy;                // at jumper center mass
-        const camZ = jz - fwdZ * 0.15;
+        // Position: 0.4m behind jumper along heading, 1.2m below center (hip/thigh level behind body)
+        // This keeps camera outside the mesh, with boots forward and slightly below → top of frame
+        const camX = jx - fwdX * 0.4;
+        const camY = jy - 1.2;
+        const camZ = jz - fwdZ * 0.4;
         sceneManager.camera.position.set(camX, camY, camZ);
-        // Look STRAIGHT DOWN — no forward offset, pure 180° Y-axis rotation
-        sceneManager.camera.lookAt(camX, jy - 500, camZ);
-        // Up vector = heading forward, so the toes appear at the bottom of screen
+        // Up vector = heading forward, so forward = top of screen (boots appear at top)
         sceneManager.camera.up.set(fwdX, 0, fwdZ);
-        // Wider FOV for immersive feet-down view
+        // Look STRAIGHT DOWN at the earth
+        sceneManager.camera.lookAt(camX, camY - 500, camZ);
+        // Wider FOV for immersive view
         if (sceneManager.camera.fov !== 75) {
             sceneManager.camera.fov = 75;
             sceneManager.camera.updateProjectionMatrix();
