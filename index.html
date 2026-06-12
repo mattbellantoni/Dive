@@ -5874,6 +5874,34 @@ function gameLoop(timestamp) {
             soundSystem.init();
         }
 
+        // Update tilt-based freefall inputs on mobile
+        if (window._tiltControl && window._tiltControl.active && physics.phase === 'freefall') {
+            // Auto-calibrate on first freefall frame
+            if (!window._tiltControl._calibratedThisJump) {
+                calibrateTilt();
+                window._tiltControl._calibratedThisJump = true;
+            }
+            updateTiltInputs();
+            // Update tilt HUD indicator
+            const tiltHud = document.getElementById('tilt-hud');
+            if (tiltHud) {
+                const pos = input.ffPosition === 'track' ? (input.up ? 'HEAD DN' : 'TRACK') : (input.down ? 'SIT FLY' : 'BELLY');
+                const turn = input.left ? '◀ TURN' : (input.right ? 'TURN ▶' : '');
+                tiltHud.textContent = `TILT: ${pos} ${turn}`.trim();
+                tiltHud.style.display = 'block';
+            }
+        } else {
+            const tiltHud = document.getElementById('tilt-hud');
+            if (tiltHud) tiltHud.style.display = 'none';
+            // Clear tilt-driven inputs when not in freefall
+            if (window._tiltControl && window._tiltControl.active) {
+                // Only clear if tilt was driving them (don't interfere with touch canopy controls)
+                if (physics.phase === 'deploying' || physics.phase === 'canopy') {
+                    // Tilt no longer controls these — let touch zones take over
+                }
+            }
+        }
+
         if (input.deploy && physics.phase === 'freefall') {
             physics.phase = 'deploying';
             physics.deployTimer = 0;
@@ -6028,10 +6056,140 @@ function setupInputHandlers() {
     });
 }
 
+// ==================== GYROSCOPE / TILT FREEFALL CONTROLS ====================
+// Uses DeviceOrientation API: phone tilt maps to body position and yaw during freefall.
+// Beta = forward/back tilt (pitch), Gamma = left/right tilt (yaw/turn).
+// Phone held naturally in portrait at ~45-60° beta is "neutral" (belly).
+
+window._tiltControl = {
+    active: false,
+    permitted: false,
+    beta: null,     // forward/backward tilt (-180 to 180)
+    gamma: null,    // left/right tilt (-90 to 90)
+    calibrated: false,
+    betaOffset: 50, // baseline beta when phone held comfortably (~50°)
+    smoothBeta: 0,
+    smoothGamma: 0,
+};
+
+function requestTiltPermission() {
+    const tc = window._tiltControl;
+    // iOS 13+ requires explicit permission
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then(state => {
+                if (state === 'granted') {
+                    tc.permitted = true;
+                    startTiltListener();
+                } else {
+                    console.warn('Tilt permission denied');
+                }
+            })
+            .catch(err => console.error('Tilt permission error:', err));
+    } else if ('DeviceOrientationEvent' in window) {
+        // Android and older iOS — no permission needed
+        tc.permitted = true;
+        startTiltListener();
+    }
+}
+
+function startTiltListener() {
+    const tc = window._tiltControl;
+    window.addEventListener('deviceorientation', (e) => {
+        if (e.beta != null) tc.beta = e.beta;
+        if (e.gamma != null) tc.gamma = e.gamma;
+    }, { passive: true });
+    tc.active = true;
+}
+
+function calibrateTilt() {
+    const tc = window._tiltControl;
+    if (tc.beta != null) {
+        tc.betaOffset = tc.beta; // current holding angle = neutral belly
+        tc.calibrated = true;
+    }
+}
+
+function updateTiltInputs() {
+    const tc = window._tiltControl;
+    if (!tc.active || tc.beta == null || tc.gamma == null) return;
+    if (!physics || physics.phase !== 'freefall') return;
+
+    // Smooth the raw sensor values (low-pass filter)
+    const smooth = 0.25; // 0 = no smoothing, 1 = no change
+    tc.smoothBeta = tc.smoothBeta * (1 - smooth) + tc.beta * smooth;
+    tc.smoothGamma = tc.smoothGamma * (1 - smooth) + tc.gamma * smooth;
+
+    // Delta from neutral holding position
+    const betaDelta = tc.smoothBeta - tc.betaOffset;
+    // betaDelta > 0 = tilted forward (top of phone away) = track/head-down
+    // betaDelta < 0 = tilted back (top toward you) = sit fly
+
+    // Dead zone: ±8° from neutral = belly
+    const DEAD_ZONE = 8;
+    const TRACK_THRESHOLD = 15;    // degrees forward for track
+    const HD_THRESHOLD = 30;       // degrees forward for head-down
+    const SIT_THRESHOLD = 15;      // degrees back for sit fly
+
+    // --- Body position from forward/back tilt ---
+    if (betaDelta > HD_THRESHOLD) {
+        // Strong forward tilt = head-down (also sets tracking)
+        input.ffPosition = 'track';
+        input.up = true;
+        input.down = false;
+    } else if (betaDelta > TRACK_THRESHOLD) {
+        // Moderate forward tilt = tracking
+        input.ffPosition = 'track';
+        input.up = false;
+        input.down = false;
+    } else if (betaDelta < -SIT_THRESHOLD) {
+        // Tilted back = sit fly
+        input.ffPosition = 'belly'; // base is belly, pitch goes positive for sit
+        input.down = true;
+        input.up = false;
+    } else if (Math.abs(betaDelta) <= DEAD_ZONE) {
+        // Neutral = belly (stable arch)
+        input.ffPosition = 'belly';
+        input.up = false;
+        input.down = false;
+    } else if (betaDelta > DEAD_ZONE) {
+        // Slight forward = beginning of track
+        input.ffPosition = 'belly';
+        input.up = true; // gentle nose-down pitch
+        input.down = false;
+    } else {
+        // Slight back but not sit threshold
+        input.ffPosition = 'belly';
+        input.up = false;
+        input.down = true; // gentle nose-up pitch
+    }
+
+    // --- Yaw from left/right tilt (gamma) ---
+    const GAMMA_DEAD = 6; // degrees dead zone
+    const gammaVal = tc.smoothGamma;
+
+    if (gammaVal < -GAMMA_DEAD) {
+        // Phone tilted left = turn left
+        input.left = true;
+        input.right = false;
+    } else if (gammaVal > GAMMA_DEAD) {
+        // Phone tilted right = turn right
+        input.right = true;
+        input.left = false;
+    } else {
+        // Neutral = no turn
+        input.left = false;
+        input.right = false;
+    }
+}
+
 // ==================== MOBILE TOUCH CONTROLS ====================
 function setupTouchControls() {
     const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (!isMobile) return;
+
+    // Request tilt permission (needed for iOS)
+    requestTiltPermission();
 
     // Hide desktop key hints, show touch zone overlays
     const hints = document.getElementById('key-hints');
@@ -6055,6 +6213,9 @@ function setupTouchControls() {
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
         <div id="touch-indicator-right" style="position:absolute;right:10px;width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
+        <div id="tilt-hud" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);
+            background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:4px 10px;border-radius:6px;
+            pointer-events:none;display:none;z-index:200;text-align:center;font-family:monospace;"></div>
     `;
     document.body.appendChild(overlay);
 
@@ -6229,17 +6390,19 @@ function setupTouchControls() {
             camDragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
             if (isFreefall) {
-                // Freefall: vertical = pitch control (up/down), horizontal = camera orbit
-                // Swipe up from start = head-down, swipe down = sit
-                const totalDy = e.touches[0].clientY - centerTouchStart.y;
-                if (totalDy < -30) {
-                    input.up = true; input.down = false; // head-down
-                } else if (totalDy > 30) {
-                    input.down = true; input.up = false; // sit
-                } else {
-                    input.up = false; input.down = false;
+                // Freefall with tilt: tilt handles body position, touch is camera only
+                // Freefall without tilt: fallback to swipe pitch controls
+                if (!window._tiltControl.active) {
+                    const totalDy = e.touches[0].clientY - centerTouchStart.y;
+                    if (totalDy < -30) {
+                        input.up = true; input.down = false;
+                    } else if (totalDy > 30) {
+                        input.down = true; input.up = false;
+                    } else {
+                        input.up = false; input.down = false;
+                    }
                 }
-                // Horizontal still orbits camera
+                // Camera orbit (both tilt and non-tilt)
                 if (Math.abs(dx) > 1) {
                     const target = sceneManager.orbitControls.target;
                     const offset = new THREE.Vector3().subVectors(sceneManager.camera.position, target);
@@ -6249,6 +6412,20 @@ function setupTouchControls() {
                     const newAzimuth = azimuth - dx * 0.005;
                     offset.x = dist * Math.sin(polar) * Math.sin(newAzimuth);
                     offset.z = dist * Math.sin(polar) * Math.cos(newAzimuth);
+                    sceneManager.camera.position.copy(target).add(offset);
+                    sceneManager.camera.lookAt(target);
+                }
+                // Vertical drag orbits camera vertically (tilt mode) or is handled above (non-tilt)
+                if (window._tiltControl.active && Math.abs(dy) > 1) {
+                    const target = sceneManager.orbitControls.target;
+                    const offset = new THREE.Vector3().subVectors(sceneManager.camera.position, target);
+                    const dist = offset.length();
+                    const polar = Math.acos(Math.max(-1, Math.min(1, offset.y / dist)));
+                    const azimuth = Math.atan2(offset.x, offset.z);
+                    const newPolar = Math.max(0.1, Math.min(Math.PI - 0.1, polar - dy * 0.005));
+                    offset.x = dist * Math.sin(newPolar) * Math.sin(azimuth);
+                    offset.y = dist * Math.cos(newPolar);
+                    offset.z = dist * Math.sin(newPolar) * Math.cos(azimuth);
                     sceneManager.camera.position.copy(target).add(offset);
                     sceneManager.camera.lookAt(target);
                 }
@@ -6276,9 +6453,11 @@ function setupTouchControls() {
         if (e.touches.length < 1) {
             camDragStart = null;
             centerTouchStart = null;
-            // Release freefall pitch inputs
-            input.up = false;
-            input.down = false;
+            // Release freefall pitch inputs (only if tilt isn't controlling them)
+            if (!window._tiltControl || !window._tiltControl.active) {
+                input.up = false;
+                input.down = false;
+            }
         }
     });
 
@@ -6389,6 +6568,11 @@ window.startJump = function() {
     // Reset FPV and body position
     fpvMode = false;
     input.ffPosition = 'belly';
+    if (window._tiltControl) {
+        window._tiltControl._calibratedThisJump = false;
+        // Re-request tilt permission if not yet granted (iOS needs gesture context)
+        if (!window._tiltControl.permitted) requestTiltPermission();
+    }
     if (sceneManager) {
         sceneManager.orbitControls.enabled = true;
         sceneManager.skydiver.visible = true;
