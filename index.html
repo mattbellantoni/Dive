@@ -5999,19 +5999,40 @@ function gameLoop(timestamp) {
     if (window._cameraFlipped && isCanopy && sceneManager) {
         const h = physics.heading || 0;
         sceneManager.orbitControls.enabled = false;
-        // Feet-down view: camera at waist, pointed straight at the ground
+        // Feet-down POV: camera at jumper's chest, tilted to look straight down at the earth.
+        // Slight backward offset so the jumper's legs and boot tips are visible at the bottom of frame.
         const jx = sceneManager.skydiver.position.x;
         const jy = sceneManager.skydiver.position.y;
         const jz = sceneManager.skydiver.position.z;
-        // Position at jumper's waist, offset forward slightly so we see legs/feet below
-        sceneManager.camera.position.set(jx, jy, jz);
-        // Look almost straight down — tiny forward offset keeps heading aligned
-        sceneManager.camera.lookAt(jx, jy - 100, jz);
-        // Rotate camera so heading "forward" is up on screen
-        sceneManager.camera.up.set(Math.sin(h), 0, Math.cos(h));
+        // Forward direction from heading
+        const fwdX = Math.sin(h);
+        const fwdZ = Math.cos(h);
+        // Place camera at chest height, shifted slightly backward and up from center
+        // so we peer past the legs/boots toward the ground
+        const camX = jx - fwdX * 0.3;  // slightly behind jumper
+        const camY = jy + 0.3;          // chest height (above center mass)
+        const camZ = jz - fwdZ * 0.3;
+        sceneManager.camera.position.set(camX, camY, camZ);
+        // Look at a point far below and slightly forward (so boots/toes are in bottom of frame)
+        const lookX = jx + fwdX * 0.5;
+        const lookY = jy - 200;
+        const lookZ = jz + fwdZ * 0.5;
+        sceneManager.camera.lookAt(lookX, lookY, lookZ);
+        // "Up" on screen aligns with forward heading (ground scrolls toward you naturally)
+        sceneManager.camera.up.set(fwdX, 0, fwdZ);
+        // Wider FOV for immersive feet-down view
+        if (sceneManager.camera.fov !== 75) {
+            sceneManager.camera.fov = 75;
+            sceneManager.camera.updateProjectionMatrix();
+        }
     } else if (sceneManager) {
         if (!fpvMode) sceneManager.orbitControls.enabled = true;
         sceneManager.camera.up.set(0, 1, 0); // reset up vector
+        // Restore normal FOV
+        if (sceneManager.camera.fov !== 60) {
+            sceneManager.camera.fov = 60;
+            sceneManager.camera.updateProjectionMatrix();
+        }
     }
 
     sceneManager.render();
