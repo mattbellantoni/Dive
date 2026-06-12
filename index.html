@@ -718,7 +718,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.57 &middot; Jun 12, 2026</div>
+<div id="version-badge">v1.59 &middot; Jun 12, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2621,6 +2621,7 @@ class SceneManager {
         this.createWindSock();
 
         this.createTerrainFeatures();
+        this.createClouds();
         this.createLandingPredictor();
         this.createExitMarker();
 
@@ -4373,6 +4374,149 @@ class SceneManager {
         this.scene.add(this.windSockGroup);
     }
 
+    // ==================== CLOUD SYSTEM ====================
+    // Procedural cumulus clouds that drift with the wind at realistic altitudes.
+    // Each cloud is a cluster of billboard sprites with soft-edge canvas textures.
+    // Clouds recycle when they drift out of range — always fresh clouds around the player.
+    createClouds() {
+        const isMobile = window.isMobileDevice;
+        const CLOUD_COUNT = isMobile ? 18 : 35;       // number of cloud formations
+        const PUFFS_PER_CLOUD = isMobile ? 4 : 7;     // billboard puffs per formation
+        const SPREAD_RADIUS = 8000;                     // how far from origin clouds spawn
+        const MIN_ALT_M = 600;                          // ~2000 ft — lowest cloud base
+        const MAX_ALT_M = 2400;                         // ~8000 ft — highest cloud top
+        const RECYCLE_DIST = 12000;                     // recycle when this far from camera
+
+        // Generate procedural cloud puff texture on canvas
+        const texSize = isMobile ? 128 : 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = texSize;
+        canvas.height = texSize;
+        const ctx = canvas.getContext('2d');
+        const cx = texSize / 2, cy = texSize / 2, r = texSize * 0.42;
+
+        // Soft radial gradient — bright white center fading to transparent edges
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.3, 'rgba(255,255,255,0.75)');
+        grad.addColorStop(0.6, 'rgba(240,245,255,0.35)');
+        grad.addColorStop(0.85, 'rgba(230,240,255,0.08)');
+        grad.addColorStop(1, 'rgba(220,235,255,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, texSize, texSize);
+
+        // Add lumpy detail — random overlapping circles for organic look
+        for (let i = 0; i < 8; i++) {
+            const ox = cx + (Math.random() - 0.5) * r * 0.8;
+            const oy = cy + (Math.random() - 0.5) * r * 0.6;
+            const or = r * (0.25 + Math.random() * 0.3);
+            const g2 = ctx.createRadialGradient(ox, oy, 0, ox, oy, or);
+            g2.addColorStop(0, 'rgba(255,255,255,0.5)');
+            g2.addColorStop(0.5, 'rgba(250,252,255,0.2)');
+            g2.addColorStop(1, 'rgba(240,248,255,0)');
+            ctx.fillStyle = g2;
+            ctx.fillRect(0, 0, texSize, texSize);
+        }
+
+        const cloudTexture = new THREE.CanvasTexture(canvas);
+        cloudTexture.needsUpdate = true;
+
+        // Shared material — additive-ish blending for soft overlapping puffs
+        const cloudMat = new THREE.SpriteMaterial({
+            map: cloudTexture,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false,        // no z-fighting between overlapping puffs
+            fog: true,                // affected by scene fog for distance fade
+            blending: THREE.NormalBlending,
+        });
+
+        this.clouds = [];
+        this.cloudGroup = new THREE.Group();
+        this.cloudRecycleDist = RECYCLE_DIST;
+
+        for (let i = 0; i < CLOUD_COUNT; i++) {
+            const formation = new THREE.Group();
+
+            // Random position within spread radius
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * SPREAD_RADIUS;
+            const baseX = Math.sin(angle) * dist;
+            const baseZ = Math.cos(angle) * dist;
+            const baseY = MIN_ALT_M + Math.random() * (MAX_ALT_M - MIN_ALT_M);
+
+            // Cloud shape: wider than tall, random lumps
+            const cloudWidth = 200 + Math.random() * 400;   // 200-600m wide
+            const cloudHeight = 60 + Math.random() * 120;   // 60-180m tall
+            const cloudDepth = 150 + Math.random() * 250;   // 150-400m deep
+
+            for (let p = 0; p < PUFFS_PER_CLOUD; p++) {
+                const puffMat = cloudMat.clone();
+                // Vary opacity per puff for depth illusion
+                puffMat.opacity = 0.35 + Math.random() * 0.35;
+
+                const sprite = new THREE.Sprite(puffMat);
+                const puffSize = 120 + Math.random() * 250; // 120-370m per puff billboard
+                sprite.scale.set(puffSize, puffSize * (0.5 + Math.random() * 0.3), 1);
+
+                // Distribute puffs within the cloud volume
+                sprite.position.set(
+                    (Math.random() - 0.5) * cloudWidth,
+                    (Math.random() - 0.3) * cloudHeight, // slight bottom-heavy for flat base
+                    (Math.random() - 0.5) * cloudDepth
+                );
+                formation.add(sprite);
+            }
+
+            formation.position.set(baseX, baseY, baseZ);
+            this.cloudGroup.add(formation);
+            this.clouds.push({
+                group: formation,
+                baseY: baseY,
+                // Gentle vertical bob — each cloud bobs at its own rate
+                bobPhase: Math.random() * Math.PI * 2,
+                bobSpeed: 0.1 + Math.random() * 0.15,
+                bobAmp: 5 + Math.random() * 15,
+            });
+        }
+        this.scene.add(this.cloudGroup);
+    }
+
+    // Called each frame — drift clouds with wind, bob gently, recycle distant ones
+    updateClouds(dt, windSystem, cameraPos) {
+        if (!this.clouds || !windSystem) return;
+
+        for (const cloud of this.clouds) {
+            const alt = cloud.group.position.y;
+            const wind = windSystem.getWindAtAltitude(alt);
+
+            // Drift with wind (wind.x and wind.z are in m/s)
+            cloud.group.position.x += wind.x * dt;
+            cloud.group.position.z += wind.z * dt;
+
+            // Gentle vertical bob (thermal-like slow rise/sink)
+            cloud.bobPhase += cloud.bobSpeed * dt;
+            cloud.group.position.y = cloud.baseY + Math.sin(cloud.bobPhase) * cloud.bobAmp;
+
+            // Recycle: if too far from camera, teleport to a new position near the camera
+            const dx = cloud.group.position.x - cameraPos.x;
+            const dz = cloud.group.position.z - cameraPos.z;
+            const distSq = dx * dx + dz * dz;
+
+            if (distSq > this.cloudRecycleDist * this.cloudRecycleDist) {
+                // Respawn on the upwind side so clouds naturally drift toward the player
+                const angle = Math.atan2(wind.x, wind.z) + Math.PI + (Math.random() - 0.5) * 1.5;
+                const spawnDist = this.cloudRecycleDist * (0.6 + Math.random() * 0.3);
+                cloud.group.position.x = cameraPos.x + Math.sin(angle) * spawnDist;
+                cloud.group.position.z = cameraPos.z + Math.cos(angle) * spawnDist;
+                // Randomize altitude within cloud band
+                cloud.baseY = 600 + Math.random() * 1800;
+                cloud.group.position.y = cloud.baseY;
+                cloud.bobPhase = Math.random() * Math.PI * 2;
+            }
+        }
+    }
+
     createLandingPredictor() {
         // Neon green crosshair marker on the ground
         this.predictorGroup = new THREE.Group();
@@ -6085,6 +6229,11 @@ function gameLoop(timestamp) {
         }
     }
 
+    // Clouds drift even during preflight and after landing — always alive
+    if (windSystem && sceneManager.clouds) {
+        sceneManager.updateClouds(dt, windSystem, sceneManager.camera.position);
+    }
+
     sceneManager.render();
     requestAnimationFrame(gameLoop);
 }
@@ -6296,18 +6445,18 @@ function setupTouchControls() {
         <div id="touch-center" style="position:absolute;left:30%;top:0;width:40%;height:100%;pointer-events:auto;"></div>
         <div id="touch-right" style="position:absolute;right:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
         <!-- Canopy toggle depth bars (moved inward to clear iPhone camera area) -->
-        <div id="touch-depth-left" style="position:absolute;left:25px;bottom:80px;width:40px;height:200px;
+        <div id="touch-depth-left" style="position:absolute;left:48px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
             border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;display:none;"></div>
-        <div id="touch-depth-right" style="position:absolute;right:25px;bottom:80px;width:40px;height:200px;
+        <div id="touch-depth-right" style="position:absolute;right:48px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
             border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;display:none;"></div>
-        <div id="touch-indicator-left" style="position:absolute;left:25px;width:40px;height:8px;
+        <div id="touch-indicator-left" style="position:absolute;left:48px;width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
-        <div id="touch-indicator-right" style="position:absolute;right:25px;width:40px;height:8px;
+        <div id="touch-indicator-right" style="position:absolute;right:48px;width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
         <!-- Freefall dual-circle controls -->
-        <div id="ff-circle-left" style="position:absolute;left:8px;bottom:90px;width:56px;height:180px;
+        <div id="ff-circle-left" style="position:absolute;left:48px;bottom:90px;width:56px;height:180px;
             border-radius:28px;border:2px solid rgba(74,222,128,0.5);pointer-events:none;display:none;
             background:linear-gradient(to top,rgba(34,197,94,0.12),rgba(59,130,246,0.12) 40%,rgba(249,115,22,0.12) 65%,rgba(239,68,68,0.12));
             overflow:hidden;">
@@ -6320,7 +6469,7 @@ function setupTouchControls() {
             <div style="position:absolute;top:55%;width:100%;text-align:center;font-size:7px;color:rgba(59,130,246,0.7);font-family:monospace;pointer-events:none;">TRK</div>
             <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:7px;color:rgba(74,222,128,0.7);font-family:monospace;pointer-events:none;">BLY</div>
         </div>
-        <div id="ff-circle-right" style="position:absolute;right:8px;bottom:90px;width:56px;height:180px;
+        <div id="ff-circle-right" style="position:absolute;right:48px;bottom:90px;width:56px;height:180px;
             border-radius:28px;border:2px solid rgba(74,222,128,0.5);pointer-events:none;display:none;
             background:linear-gradient(to top,rgba(34,197,94,0.12),rgba(59,130,246,0.12) 40%,rgba(249,115,22,0.12) 65%,rgba(239,68,68,0.12));
             overflow:hidden;">
