@@ -171,6 +171,13 @@
         }
         #dz-badge:hover { background: rgba(255,255,255,0.15); }
 
+        /* Version badge */
+        #version-badge {
+            position: fixed; bottom: 4px; left: 6px;
+            color: rgba(255,255,255,0.25); font-size: 9px; z-index: 10;
+            pointer-events: none; font-family: monospace;
+        }
+
         /* Loading overlay for satellite tiles */
         #loading-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8);
@@ -710,6 +717,8 @@
 <button id="mobile-start-btn">Start Jump</button>
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
+
+<div id="version-badge">v1.55 &middot; Jun 12, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -5198,12 +5207,11 @@ class SceneManager {
             if (dist > 300) {
                 // Snap to default view when too far
                 if (isFreefall) {
-                    // Straight down from behind: ~4m back along heading, 5m above
-                    const ffH = state.ffYaw || 0;
+                    // True top-down: 20m directly above jumper
                     this.camera.position.set(
-                        state.position.x - Math.sin(ffH) * 4,
-                        state.position.y + 5,
-                        state.position.z - Math.cos(ffH) * 4
+                        state.position.x,
+                        state.position.y + 20,
+                        state.position.z
                     );
                 } else {
                     // Behind and above along flight path
@@ -5223,22 +5231,18 @@ class SceneManager {
                 const userCamActive = this._userCamOverride;
 
                 if (!userCamActive && state.phase === 'freefall') {
-                    // Freefall: straight-down view from ~4m (13ft) behind and above the jumper
+                    // Freefall: true top-down view — camera 20m directly above the jumper
+                    // looking STRAIGHT DOWN at the earth. Jumper visible as small figure below.
                     const ffHeading = state.ffYaw || 0;
-                    const behindX = -Math.sin(ffHeading) * 4; // ~13ft behind in heading direction
-                    const behindZ = -Math.cos(ffHeading) * 4;
                     const targetCam = new THREE.Vector3(
-                        targetPos.x + behindX,
-                        targetPos.y + 5, // slightly above
-                        targetPos.z + behindZ
+                        targetPos.x,
+                        targetPos.y + 20,  // ~65ft directly above
+                        targetPos.z
                     );
                     this.camera.position.lerp(targetCam, 0.06);
-                    // Look straight down at a point far below the jumper
-                    const lookTarget = new THREE.Vector3(targetPos.x, targetPos.y - 200, targetPos.z);
-                    const currentLook = this.orbitControls.target.clone();
-                    currentLook.lerp(lookTarget, 0.06);
-                    this.camera.lookAt(currentLook);
-                    // Up vector follows heading so ground scrolls naturally
+                    // Look at a point far below camera — straight down, earth fills screen
+                    this.camera.lookAt(this.camera.position.x, this.camera.position.y - 500, this.camera.position.z);
+                    // Up vector follows heading so forward is "up" on screen
                     this.camera.up.set(Math.sin(ffHeading), 0, Math.cos(ffHeading));
                 } else if (state.phase === 'canopy') {
                     // Reset up vector when transitioning from freefall's heading-aligned up
