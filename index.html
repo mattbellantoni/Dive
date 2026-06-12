@@ -2633,6 +2633,29 @@ class SceneManager {
         });
 
         window.addEventListener('resize', () => this.onResize());
+        // visualViewport resize is the most reliable signal on mobile
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => this.onResize());
+        }
+        // Mobile orientation change: browsers may delay reporting new dimensions
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.onResize(), 50);
+            setTimeout(() => this.onResize(), 200);
+            setTimeout(() => this.onResize(), 500);
+        });
+        // Polling fallback for edge cases (toolbar show/hide, split screen)
+        if (window.isMobileDevice) {
+            let lastW = 0, lastH = 0;
+            setInterval(() => {
+                const vv = window.visualViewport;
+                const cw = vv ? vv.width : window.innerWidth;
+                const ch = vv ? vv.height : window.innerHeight;
+                if (cw !== lastW || ch !== lastH) {
+                    lastW = cw; lastH = ch;
+                    this.onResize();
+                }
+            }, 500);
+        }
 
         // Load satellite textures (wide + detail)
         if (dzInfo) {
@@ -5174,8 +5197,13 @@ class SceneManager {
             if (dist > 300) {
                 // Snap to default view when too far
                 if (isFreefall) {
-                    // Top-down: directly above looking straight down
-                    this.camera.position.set(state.position.x, state.position.y + 20, state.position.z);
+                    // Straight down from behind: ~4m back along heading, 5m above
+                    const ffH = state.ffYaw || 0;
+                    this.camera.position.set(
+                        state.position.x - Math.sin(ffH) * 4,
+                        state.position.y + 5,
+                        state.position.z - Math.cos(ffH) * 4
+                    );
                 } else {
                     // Behind and above along flight path
                     this.camera.position.set(
@@ -5194,12 +5222,26 @@ class SceneManager {
                 const userCamActive = this._userCamOverride;
 
                 if (!userCamActive && state.phase === 'freefall') {
-                    // Freefall: smoothly lerp to top-down view
-                    const camOffset = new THREE.Vector3().subVectors(this.camera.position, targetPos);
-                    const currentDist = camOffset.length();
-                    const targetCam = new THREE.Vector3(targetPos.x, targetPos.y + currentDist, targetPos.z);
-                    this.camera.position.lerp(targetCam, 0.04);
+                    // Freefall: straight-down view from ~4m (13ft) behind and above the jumper
+                    const ffHeading = state.ffYaw || 0;
+                    const behindX = -Math.sin(ffHeading) * 4; // ~13ft behind in heading direction
+                    const behindZ = -Math.cos(ffHeading) * 4;
+                    const targetCam = new THREE.Vector3(
+                        targetPos.x + behindX,
+                        targetPos.y + 5, // slightly above
+                        targetPos.z + behindZ
+                    );
+                    this.camera.position.lerp(targetCam, 0.06);
+                    // Look straight down at a point far below the jumper
+                    const lookTarget = new THREE.Vector3(targetPos.x, targetPos.y - 200, targetPos.z);
+                    const currentLook = this.orbitControls.target.clone();
+                    currentLook.lerp(lookTarget, 0.06);
+                    this.camera.lookAt(currentLook);
+                    // Up vector follows heading so ground scrolls naturally
+                    this.camera.up.set(Math.sin(ffHeading), 0, Math.cos(ffHeading));
                 } else if (state.phase === 'canopy') {
+                    // Reset up vector when transitioning from freefall's heading-aligned up
+                    this.camera.up.set(0, 1, 0);
                     // Canopy: follow heading azimuth (even with user override)
                     // User override only preserves their chosen elevation and distance
                     const camOffset = new THREE.Vector3().subVectors(this.camera.position, targetPos);
@@ -5241,9 +5283,16 @@ class SceneManager {
     }
 
     onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        // Use visualViewport if available (most reliable on mobile), fallback to window
+        const vv = window.visualViewport;
+        const w = vv ? vv.width : window.innerWidth;
+        const h = vv ? vv.height : window.innerHeight;
+        // Also check document.documentElement for another fallback
+        const fw = Math.max(w, document.documentElement.clientWidth || 0);
+        const fh = Math.max(h, document.documentElement.clientHeight || 0);
+        this.camera.aspect = fw / fh;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(fw, fh);
     }
 
     render() {
@@ -6000,25 +6049,21 @@ function gameLoop(timestamp) {
         const h = physics.heading || 0;
         sceneManager.orbitControls.enabled = false;
         // Feet-down POV: camera at jumper's chest, tilted to look straight down at the earth.
-        // Slight backward offset so the jumper's legs and boot tips are visible at the bottom of frame.
+        // True straight-down view: camera at jumper's waist, looking 180° down (directly at earth).
+        // Tiny backward offset so the boot tips are just visible at the bottom edge of the frame.
         const jx = sceneManager.skydiver.position.x;
         const jy = sceneManager.skydiver.position.y;
         const jz = sceneManager.skydiver.position.z;
-        // Forward direction from heading
         const fwdX = Math.sin(h);
         const fwdZ = Math.cos(h);
-        // Place camera at chest height, shifted slightly backward and up from center
-        // so we peer past the legs/boots toward the ground
-        const camX = jx - fwdX * 0.3;  // slightly behind jumper
-        const camY = jy + 0.3;          // chest height (above center mass)
-        const camZ = jz - fwdZ * 0.3;
+        // Camera at jumper center, nudged backward along heading so toes peek into frame
+        const camX = jx - fwdX * 0.15;
+        const camY = jy;                // at jumper center mass
+        const camZ = jz - fwdZ * 0.15;
         sceneManager.camera.position.set(camX, camY, camZ);
-        // Look at a point far below and slightly forward (so boots/toes are in bottom of frame)
-        const lookX = jx + fwdX * 0.5;
-        const lookY = jy - 200;
-        const lookZ = jz + fwdZ * 0.5;
-        sceneManager.camera.lookAt(lookX, lookY, lookZ);
-        // "Up" on screen aligns with forward heading (ground scrolls toward you naturally)
+        // Look STRAIGHT DOWN — no forward offset, pure 180° Y-axis rotation
+        sceneManager.camera.lookAt(camX, jy - 500, camZ);
+        // Up vector = heading forward, so the toes appear at the bottom of screen
         sceneManager.camera.up.set(fwdX, 0, fwdZ);
         // Wider FOV for immersive feet-down view
         if (sceneManager.camera.fov !== 75) {
