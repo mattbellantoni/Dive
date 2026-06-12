@@ -718,7 +718,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.61 &middot; Jun 12, 2026 &middot; 12:25 PM EST</div>
+<div id="version-badge">v1.63 &middot; Jun 12, 2026 &middot; 12:32 PM EST</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -877,7 +877,7 @@ const SAVED_DZS = [
     { name: 'Skydive Perris (CA)', lat: 33.7683, lng: -117.2264, elev: 440 },
     { name: 'Skydive Chicago / Ottawa (IL)', lat: 41.3508, lng: -88.8404, elev: 230 },
     { name: 'Skydive City / ZHills (FL)', lat: 28.2286, lng: -82.1551, elev: 21 },
-    { name: 'Skydive Cross Keys (NJ)', lat: 39.6339, lng: -75.0312, elev: 49 },
+    { name: 'Skydive Cross Keys (NJ)', lat: 39.70725, lng: -75.03606, elev: 49 },
     { name: 'Skydive Sebastian (FL)', lat: 27.8123, lng: -80.4963, elev: 6 },
     { name: 'Skydive Arizona (Eloy, AZ)', lat: 32.6107, lng: -111.5831, elev: 457 },
     { name: 'Skydive Carolina (SC)', lat: 34.8728, lng: -81.0037, elev: 179 },
@@ -997,10 +997,15 @@ function initDZMap() {
             selectedDZ = { lat: dz.lat, lng: dz.lng, elevation: dz.elev };
             const infoEl = document.getElementById('settings-dz-info');
             if (infoEl) infoEl.textContent = `${dz.lat.toFixed(4)}, ${dz.lng.toFixed(4)} · ${Math.round(dz.elev * CONFIG.M_TO_FT)} ft MSL`;
-            // Re-initialize simulator with new DZ
             document.getElementById('dz-selector').classList.add('hidden');
             document.getElementById('dz-badge').textContent = `DZ: ${selectedDZ.lat.toFixed(3)}, ${selectedDZ.lng.toFixed(3)}`;
-            initSimulator(selectedDZ);
+            if (simInitialized && sceneManager) {
+                // Sim already running — reload textures and reset for new DZ
+                sceneManager.loadDZTextures(selectedDZ.lat, selectedDZ.lng, selectedDZ.elevation);
+                resetSim();
+            } else {
+                initSimulator(selectedDZ);
+            }
             saveSettings();
             setTimeout(() => fetchLiveWinds(), 500);
         });
@@ -1035,7 +1040,13 @@ window.confirmDZ = function() {
     if (!selectedDZ) return;
     document.getElementById('dz-selector').classList.add('hidden');
     document.getElementById('dz-badge').textContent = `DZ: ${selectedDZ.lat.toFixed(3)}, ${selectedDZ.lng.toFixed(3)}`;
-    initSimulator(selectedDZ);
+    if (simInitialized && sceneManager) {
+        // Sim already running — reload textures and reset for new DZ
+        sceneManager.loadDZTextures(selectedDZ.lat, selectedDZ.lng, selectedDZ.elevation);
+        resetSim();
+    } else {
+        initSimulator(selectedDZ);
+    }
     saveSettings();
     // Auto-load live winds for the selected DZ
     setTimeout(() => fetchLiveWinds(), 500);
@@ -2672,36 +2683,44 @@ class SceneManager {
 
         // Load satellite textures (wide + detail)
         if (dzInfo) {
-            const overlay = document.getElementById('loading-overlay');
-            overlay.classList.add('visible');
-            loadSatelliteTexture(dzInfo.lat, dzInfo.lng, (textures) => {
-                // Wide texture (zoom 14, ~25km plane, 10*256=2560px canvas)
-                const wideTex = new THREE.CanvasTexture(textures.wide);
-                wideTex.minFilter = THREE.LinearMipmapLinearFilter;
-                wideTex.magFilter = THREE.LinearFilter;
-                wideTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-                this.groundWide.material.map = wideTex;
-                this.groundWide.material.color.set(0xffffff);
-                this.groundWide.material.needsUpdate = true;
-                console.log('Satellite wide texture loaded');
-
-                // Detail texture (zoom 17, ~5km)
-                const detailTex = new THREE.CanvasTexture(textures.detail);
-                detailTex.minFilter = THREE.LinearMipmapLinearFilter;
-                detailTex.magFilter = THREE.LinearFilter;
-                detailTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-                this.groundDetail.material.map = detailTex;
-                this.groundDetail.material.color.set(0xffffff);
-                this.groundDetail.material.transparent = true;
-                this.groundDetail.material.opacity = 0;
-                this.groundDetail.material.needsUpdate = true;
-
-                overlay.classList.remove('visible');
-
-                // Elevation terrain disabled temporarily for debugging
-                // this.loadElevationTerrain(dzInfo.lat, dzInfo.lng, dzInfo.elevation || 0);
-            });
+            this.loadDZTextures(dzInfo.lat, dzInfo.lng, dzInfo.elevation);
         }
+    }
+
+    loadDZTextures(lat, lng, elevation) {
+        const overlay = document.getElementById('loading-overlay');
+        overlay.classList.add('visible');
+        loadSatelliteTexture(lat, lng, (textures) => {
+            // Wide texture (zoom 14, ~25km plane, 10*256=2560px canvas)
+            const wideTex = new THREE.CanvasTexture(textures.wide);
+            wideTex.minFilter = THREE.LinearMipmapLinearFilter;
+            wideTex.magFilter = THREE.LinearFilter;
+            wideTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+            // Dispose old texture to free GPU memory
+            if (this.groundWide.material.map) this.groundWide.material.map.dispose();
+            this.groundWide.material.map = wideTex;
+            this.groundWide.material.color.set(0xffffff);
+            this.groundWide.material.needsUpdate = true;
+            console.log('Satellite wide texture loaded');
+
+            // Detail texture (zoom 17, ~5km)
+            const detailTex = new THREE.CanvasTexture(textures.detail);
+            detailTex.minFilter = THREE.LinearMipmapLinearFilter;
+            detailTex.magFilter = THREE.LinearFilter;
+            detailTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+            // Dispose old texture to free GPU memory
+            if (this.groundDetail.material.map) this.groundDetail.material.map.dispose();
+            this.groundDetail.material.map = detailTex;
+            this.groundDetail.material.color.set(0xffffff);
+            this.groundDetail.material.transparent = true;
+            this.groundDetail.material.opacity = 0;
+            this.groundDetail.material.needsUpdate = true;
+
+            overlay.classList.remove('visible');
+
+            // Elevation terrain disabled temporarily for debugging
+            // this.loadElevationTerrain(lat, lng, elevation || 0);
+        });
     }
 
     setupScene() {
