@@ -718,7 +718,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.63 &middot; Jun 12, 2026 &middot; 12:32 PM EST</div>
+<div id="version-badge">v1.64 &middot; Jun 12, 2026 &middot; 12:38 PM EST</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2039,10 +2039,11 @@ class WindSystem {
         // Apply direction wobble for natural variability
         dir += (this.dirWobble || 0);
 
-        // Wind comes FROM `dir` degrees. Convert to world vector.
-        // World is flipped 180° from geographic (compass uses +180 offset).
-        // Wind from North (0°) in geographic blows toward +Z in world space.
-        const toRad = dir * Math.PI / 180;
+        // `dir` = meteorological "from" direction (0°=from North, 270°=from West).
+        // The returned vector must point where wind BLOWS TO (air mass movement).
+        // Wind from North (0°) blows south → -Z. Add 180° to flip from→to.
+        // World coords: North=+Z, East=+X. Bearing b → (sin(b), cos(b)).
+        const toRad = (dir + 180) * Math.PI / 180;
         return {
             x: Math.sin(toRad) * speed,
             y: 0,
