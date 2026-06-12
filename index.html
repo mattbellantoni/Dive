@@ -718,7 +718,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.56 &middot; Jun 12, 2026</div>
+<div id="version-badge">v1.57 &middot; Jun 12, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2261,7 +2261,9 @@ class PhysicsEngine {
         }
 
         // Apply drift forces — these push you OFF position unless you correct
-        const hasInput = input.left || input.right || input.up || input.down;
+        // On mobile, touching circles counts as active input (player is engaged)
+        const circleActive = window._dualCircle && (window._dualCircle.leftActive || window._dualCircle.rightActive);
+        const hasInput = input.left || input.right || input.up || input.down || circleActive;
         if (!hasInput) {
             // No input: drift forces build up and push body away
             this.ffPitchRate += this.driftPitch * dt * 1.5;
@@ -5940,32 +5942,17 @@ function gameLoop(timestamp) {
             soundSystem.init();
         }
 
-        // Update tilt-based freefall inputs on mobile
-        if (window._tiltControl && window._tiltControl.active && physics.phase === 'freefall') {
-            // Auto-calibrate on first freefall frame
-            if (!window._tiltControl._calibratedThisJump) {
-                calibrateTilt();
-                window._tiltControl._calibratedThisJump = true;
+        // Update dual-circle freefall inputs on mobile
+        if (window._dualCircle && window.isMobileDevice && physics.phase === 'freefall') {
+            updateDualCircleInputs();
+        } else if (physics.phase !== 'freefall') {
+            // Clear circle state when leaving freefall
+            if (window._dualCircle) {
+                window._dualCircle.leftActive = false;
+                window._dualCircle.rightActive = false;
             }
-            updateTiltInputs();
-            // Update tilt HUD indicator
-            const tiltHud = document.getElementById('tilt-hud');
-            if (tiltHud) {
-                const pos = input.ffPosition === 'track' ? (input.up ? 'HEAD DN' : 'TRACK') : (input.down ? 'SIT FLY' : 'BELLY');
-                const turn = input.left ? '◀ TURN' : (input.right ? 'TURN ▶' : '');
-                tiltHud.textContent = `TILT: ${pos} ${turn}`.trim();
-                tiltHud.style.display = 'block';
-            }
-        } else {
-            const tiltHud = document.getElementById('tilt-hud');
-            if (tiltHud) tiltHud.style.display = 'none';
-            // Clear tilt-driven inputs when not in freefall
-            if (window._tiltControl && window._tiltControl.active) {
-                // Only clear if tilt was driving them (don't interfere with touch canopy controls)
-                if (physics.phase === 'deploying' || physics.phase === 'canopy') {
-                    // Tilt no longer controls these — let touch zones take over
-                }
-            }
+            const hudEl = document.getElementById('ff-body-hud');
+            if (hudEl) hudEl.style.display = 'none';
         }
 
         if (input.deploy && physics.phase === 'freefall') {
@@ -6145,135 +6132,156 @@ function setupInputHandlers() {
 // Beta = forward/back tilt (pitch), Gamma = left/right tilt (yaw/turn).
 // Phone held naturally in portrait at ~45-60° beta is "neutral" (belly).
 
-window._tiltControl = {
-    active: false,
-    permitted: false,
-    beta: null,     // forward/backward tilt (-180 to 180)
-    gamma: null,    // left/right tilt (-90 to 90)
-    calibrated: false,
-    betaOffset: 50, // baseline beta when phone held comfortably (~50°)
-    smoothBeta: 0,
-    smoothGamma: 0,
+// ==================== DUAL-CIRCLE FREEFALL CONTROLS ====================
+// Two circular touch zones (left/right) for body manipulation in freefall.
+// Each circle is a vertical drag: bottom = stable belly, top = aggressive head-down.
+// Combined positions determine body state; asymmetry creates turns.
+// The challenge: finding and holding equilibrium positions while turbulence pushes you off.
+window._dualCircle = {
+    leftVal: 0,         // -1 (bottom/belly) to +1 (top/head-down)
+    rightVal: 0,
+    leftActive: false,  // is finger touching left circle
+    rightActive: false,
+    leftTouchId: null,  // touch identifier for multi-touch tracking
+    rightTouchId: null,
+    // Zone thresholds for body position mapping
+    ARCH_MAX: -0.25,    // below this = arch (very stable)
+    TRACK_MIN: 0.05,    // above this = entering track zone
+    TRACK_MAX: 0.38,    // above this = leaving track into sit
+    SIT_MAX: 0.68,      // above this = head-down
+    TURN_DEAD: 0.18,    // asymmetry dead zone for turns
 };
 
-function requestTiltPermission() {
-    const tc = window._tiltControl;
-    // iOS 13+ requires explicit permission
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-            .then(state => {
-                if (state === 'granted') {
-                    tc.permitted = true;
-                    startTiltListener();
-                } else {
-                    console.warn('Tilt permission denied');
-                }
-            })
-            .catch(err => console.error('Tilt permission error:', err));
-    } else if ('DeviceOrientationEvent' in window) {
-        // Android and older iOS — no permission needed
-        tc.permitted = true;
-        startTiltListener();
-    }
-}
-
-function startTiltListener() {
-    const tc = window._tiltControl;
-    window.addEventListener('deviceorientation', (e) => {
-        if (e.beta != null) tc.beta = e.beta;
-        if (e.gamma != null) tc.gamma = e.gamma;
-    }, { passive: true });
-    tc.active = true;
-}
-
-function calibrateTilt() {
-    const tc = window._tiltControl;
-    if (tc.beta != null) {
-        tc.betaOffset = tc.beta; // current holding angle = neutral belly
-        tc.calibrated = true;
-    }
-}
-
-function updateTiltInputs() {
-    const tc = window._tiltControl;
-    if (!tc.active || tc.beta == null || tc.gamma == null) return;
+function updateDualCircleInputs() {
+    const dc = window._dualCircle;
     if (!physics || physics.phase !== 'freefall') return;
 
-    // Smooth the raw sensor values (low-pass filter)
-    const smooth = 0.25; // 0 = no smoothing, 1 = no change
-    tc.smoothBeta = tc.smoothBeta * (1 - smooth) + tc.beta * smooth;
-    tc.smoothGamma = tc.smoothGamma * (1 - smooth) + tc.gamma * smooth;
+    // Reset freefall inputs each frame
+    input.left = false;
+    input.right = false;
+    input.up = false;
+    input.down = false;
 
-    // Delta from neutral holding position
-    const betaDelta = tc.smoothBeta - tc.betaOffset;
-    // betaDelta > 0 = tilted forward (top of phone away) = track/head-down
-    // betaDelta < 0 = tilted back (top toward you) = sit fly
-
-    // Dead zone: ±8° from neutral = belly
-    const DEAD_ZONE = 8;
-    const TRACK_THRESHOLD = 15;    // degrees forward for track
-    const HD_THRESHOLD = 30;       // degrees forward for head-down
-    const SIT_THRESHOLD = 15;      // degrees back for sit fly
-
-    // --- Body position from forward/back tilt ---
-    if (betaDelta > HD_THRESHOLD) {
-        // Strong forward tilt = head-down (also sets tracking)
-        input.ffPosition = 'track';
-        input.up = true;
-        input.down = false;
-    } else if (betaDelta > TRACK_THRESHOLD) {
-        // Moderate forward tilt = tracking
-        input.ffPosition = 'track';
-        input.up = false;
-        input.down = false;
-    } else if (betaDelta < -SIT_THRESHOLD) {
-        // Tilted back = sit fly
-        input.ffPosition = 'belly'; // base is belly, pitch goes positive for sit
-        input.down = true;
-        input.up = false;
-    } else if (Math.abs(betaDelta) <= DEAD_ZONE) {
-        // Neutral = belly (stable arch)
+    if (!dc.leftActive && !dc.rightActive) {
+        // No touch = belly (safe default, release = instant stability)
         input.ffPosition = 'belly';
-        input.up = false;
-        input.down = false;
-    } else if (betaDelta > DEAD_ZONE) {
-        // Slight forward = beginning of track
-        input.ffPosition = 'belly';
-        input.up = true; // gentle nose-down pitch
-        input.down = false;
-    } else {
-        // Slight back but not sit threshold
-        input.ffPosition = 'belly';
-        input.up = false;
-        input.down = true; // gentle nose-up pitch
+        return;
     }
 
-    // --- Yaw from left/right tilt (gamma) ---
-    const GAMMA_DEAD = 6; // degrees dead zone
-    const gammaVal = tc.smoothGamma;
+    // Use active circle values; inactive side defaults to 0 (center)
+    const lv = dc.leftActive ? dc.leftVal : 0;
+    const rv = dc.rightActive ? dc.rightVal : 0;
 
-    if (gammaVal < -GAMMA_DEAD) {
-        // Phone tilted left = turn left
-        input.left = true;
-        input.right = false;
-    } else if (gammaVal > GAMMA_DEAD) {
-        // Phone tilted right = turn right
-        input.right = true;
-        input.left = false;
+    // Average determines body pitch zone, difference determines yaw
+    const avgY = (lv + rv) / 2;
+    const diffY = rv - lv;  // positive = right higher = turn right
+
+    // === BODY POSITION from average Y ===
+    // Zones create a natural progression: belly → track → sit → head-down
+    // Each zone has a "sweet spot" that the player must find and hold
+    if (avgY < dc.ARCH_MAX) {
+        // Both circles pulled low → hard arch (very stable, slow fall)
+        input.ffPosition = 'arch';
+    } else if (avgY < dc.TRACK_MIN) {
+        // Both circles near bottom-center → neutral belly
+        input.ffPosition = 'belly';
+    } else if (avgY < dc.TRACK_MAX) {
+        // Both circles at mid-low sweet spot → TRACKING
+        // This is the "skill zone" — narrow band, forward drive, must stay balanced
+        input.ffPosition = 'track';
+    } else if (avgY < dc.SIT_MAX) {
+        // Both circles at mid-high → SIT FLY
+        // Use belly as base position with pitch-up push to get sit attitude
+        input.ffPosition = 'belly';
+        input.down = true;  // pushes ffPitch positive → sit fly
     } else {
-        // Neutral = no turn
-        input.left = false;
-        input.right = false;
+        // Both circles pushed to top → HEAD DOWN
+        // Track base with steep pitch push for head-down attitude
+        // Hardest to control: high turn sensitivity, fastest fall rate
+        input.ffPosition = 'track';
+        input.up = true;  // pushes ffPitch more negative → head-down
     }
+
+    // === YAW TURNS from asymmetry ===
+    // Asymmetry = one side higher than the other = weight shift = turn
+    // In head-down, turn sensitivity doubles (reward + risk)
+    let turnDead = dc.TURN_DEAD;
+    if (avgY >= dc.SIT_MAX) turnDead *= 0.6;  // tighter dead zone in head-down
+
+    if (diffY > turnDead) {
+        input.right = true;   // right circle higher → turn right
+    } else if (diffY < -turnDead) {
+        input.left = true;    // left circle higher → turn left
+    }
+
+    // === Update visual HUD ===
+    const hudEl = document.getElementById('ff-body-hud');
+    if (hudEl) {
+        let posName, posColor;
+        if (avgY < dc.ARCH_MAX) { posName = 'ARCH'; posColor = '#22c55e'; }
+        else if (avgY < dc.TRACK_MIN) { posName = 'BELLY'; posColor = '#4ade80'; }
+        else if (avgY < dc.TRACK_MAX) { posName = 'TRACK'; posColor = '#3b82f6'; }
+        else if (avgY < dc.SIT_MAX) { posName = 'SIT FLY'; posColor = '#f97316'; }
+        else { posName = 'HEAD DOWN'; posColor = '#ef4444'; }
+        const turn = input.left ? ' ◀' : (input.right ? ' ▶' : '');
+        const stab = physics.stabilityScore != null ? ` ${Math.round(physics.stabilityScore)}%` : '';
+        hudEl.innerHTML = `<span style="color:${posColor}">${posName}</span>${turn}<span style="opacity:0.5">${stab}</span>`;
+        hudEl.style.display = 'block';
+    }
+
+    // === Update circle dot positions ===
+    updateCircleVisuals();
+}
+
+function updateCircleVisuals() {
+    const dc = window._dualCircle;
+    const leftDot = document.getElementById('ff-dot-left');
+    const rightDot = document.getElementById('ff-dot-right');
+    const leftCircle = document.getElementById('ff-circle-left');
+    const rightCircle = document.getElementById('ff-circle-right');
+
+    if (leftDot && leftCircle) {
+        if (dc.leftActive) {
+            leftDot.style.display = 'block';
+            // Map value (-1 to +1) to position within circle (bottom to top)
+            // Circle is 180px tall, dot is 32px, so travel range is 148px
+            const travel = 148;
+            const yPos = (1 - dc.leftVal) / 2 * travel;  // +1 = top (0px), -1 = bottom (148px)
+            leftDot.style.top = yPos + 'px';
+        } else {
+            leftDot.style.display = 'none';
+        }
+        // Zone color on circle border
+        const avg = (dc.leftActive ? dc.leftVal : 0);
+        leftCircle.style.borderColor = getZoneColor(avg, 0.5);
+    }
+    if (rightDot && rightCircle) {
+        if (dc.rightActive) {
+            rightDot.style.display = 'block';
+            const travel = 148;
+            const yPos = (1 - dc.rightVal) / 2 * travel;
+            rightDot.style.top = yPos + 'px';
+        } else {
+            rightDot.style.display = 'none';
+        }
+        const avg = (dc.rightActive ? dc.rightVal : 0);
+        rightCircle.style.borderColor = getZoneColor(avg, 0.5);
+    }
+}
+
+function getZoneColor(val, alpha) {
+    const dc = window._dualCircle;
+    if (val < dc.ARCH_MAX) return `rgba(34,197,94,${alpha})`;
+    if (val < dc.TRACK_MIN) return `rgba(74,222,128,${alpha})`;
+    if (val < dc.TRACK_MAX) return `rgba(59,130,246,${alpha})`;
+    if (val < dc.SIT_MAX) return `rgba(249,115,22,${alpha})`;
+    return `rgba(239,68,68,${alpha})`;
 }
 
 // ==================== MOBILE TOUCH CONTROLS ====================
 function setupTouchControls() {
     const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (!isMobile) return;
-
-    // Request tilt permission (needed for iOS)
-    requestTiltPermission();
 
     // Hide desktop key hints, show touch zone overlays
     const hints = document.getElementById('key-hints');
@@ -6287,32 +6295,59 @@ function setupTouchControls() {
         <div id="touch-left" style="position:absolute;left:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
         <div id="touch-center" style="position:absolute;left:30%;top:0;width:40%;height:100%;pointer-events:auto;"></div>
         <div id="touch-right" style="position:absolute;right:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
-        <div id="touch-depth-left" style="position:absolute;left:10px;bottom:80px;width:40px;height:200px;
+        <!-- Canopy toggle depth bars (moved inward to clear iPhone camera area) -->
+        <div id="touch-depth-left" style="position:absolute;left:25px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
-            border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;"></div>
-        <div id="touch-depth-right" style="position:absolute;right:10px;bottom:80px;width:40px;height:200px;
+            border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;display:none;"></div>
+        <div id="touch-depth-right" style="position:absolute;right:25px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
-            border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;"></div>
-        <div id="touch-indicator-left" style="position:absolute;left:10px;width:40px;height:8px;
+            border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;display:none;"></div>
+        <div id="touch-indicator-left" style="position:absolute;left:25px;width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
-        <div id="touch-indicator-right" style="position:absolute;right:10px;width:40px;height:8px;
+        <div id="touch-indicator-right" style="position:absolute;right:25px;width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
-        <div id="tilt-hud" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);
-            background:rgba(0,0,0,0.7);color:#fff;font-size:10px;padding:4px 10px;border-radius:6px;
-            pointer-events:none;display:none;z-index:200;text-align:center;font-family:monospace;"></div>
+        <!-- Freefall dual-circle controls -->
+        <div id="ff-circle-left" style="position:absolute;left:8px;bottom:90px;width:56px;height:180px;
+            border-radius:28px;border:2px solid rgba(74,222,128,0.5);pointer-events:none;display:none;
+            background:linear-gradient(to top,rgba(34,197,94,0.12),rgba(59,130,246,0.12) 40%,rgba(249,115,22,0.12) 65%,rgba(239,68,68,0.12));
+            overflow:hidden;">
+            <div id="ff-dot-left" style="position:absolute;left:50%;transform:translateX(-50%);
+                width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);
+                box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
+            <!-- Zone labels -->
+            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:7px;color:rgba(239,68,68,0.7);font-family:monospace;pointer-events:none;">HD</div>
+            <div style="position:absolute;top:32%;width:100%;text-align:center;font-size:7px;color:rgba(249,115,22,0.7);font-family:monospace;pointer-events:none;">SIT</div>
+            <div style="position:absolute;top:55%;width:100%;text-align:center;font-size:7px;color:rgba(59,130,246,0.7);font-family:monospace;pointer-events:none;">TRK</div>
+            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:7px;color:rgba(74,222,128,0.7);font-family:monospace;pointer-events:none;">BLY</div>
+        </div>
+        <div id="ff-circle-right" style="position:absolute;right:8px;bottom:90px;width:56px;height:180px;
+            border-radius:28px;border:2px solid rgba(74,222,128,0.5);pointer-events:none;display:none;
+            background:linear-gradient(to top,rgba(34,197,94,0.12),rgba(59,130,246,0.12) 40%,rgba(249,115,22,0.12) 65%,rgba(239,68,68,0.12));
+            overflow:hidden;">
+            <div id="ff-dot-right" style="position:absolute;left:50%;transform:translateX(-50%);
+                width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);
+                box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
+            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:7px;color:rgba(239,68,68,0.7);font-family:monospace;pointer-events:none;">HD</div>
+            <div style="position:absolute;top:32%;width:100%;text-align:center;font-size:7px;color:rgba(249,115,22,0.7);font-family:monospace;pointer-events:none;">SIT</div>
+            <div style="position:absolute;top:55%;width:100%;text-align:center;font-size:7px;color:rgba(59,130,246,0.7);font-family:monospace;pointer-events:none;">TRK</div>
+            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:7px;color:rgba(74,222,128,0.7);font-family:monospace;pointer-events:none;">BLY</div>
+        </div>
+        <!-- Freefall body position HUD -->
+        <div id="ff-body-hud" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);
+            background:rgba(0,0,0,0.7);color:#fff;font-size:11px;padding:4px 12px;border-radius:6px;
+            pointer-events:none;display:none;z-index:200;text-align:center;font-family:monospace;
+            letter-spacing:1px;"></div>
     `;
     document.body.appendChild(overlay);
 
-    // Track active touches per side
+    // Track active touches per side (used by canopy toggles)
     const touches = { left: null, right: null };
-    const depthBars = { left: document.getElementById('touch-depth-left'), right: document.getElementById('touch-depth-right') };
     const indicators = { left: document.getElementById('touch-indicator-left'), right: document.getElementById('touch-indicator-right') };
 
     function getTouchDepth(y) {
-        // Map screen Y to input depth: top of screen = 0.2 (light), bottom = 1.0 (full)
         const h = window.innerHeight;
         const frac = Math.max(0, Math.min(1, y / h));
-        return 0.2 + frac * 0.8; // 0.2 at top, 1.0 at bottom
+        return 0.2 + frac * 0.8;
     }
 
     function updateIndicator(side, y) {
@@ -6325,100 +6360,142 @@ function setupTouchControls() {
         }
     }
 
-    function processTouches() {
+    // Map screen Y to circle value: bottom of zone = -1 (belly), top = +1 (head-down)
+    function getCircleValue(touchY) {
+        const h = window.innerHeight;
+        // Use the bottom 75% of the screen as the active range
+        // This keeps the controls in comfortable thumb reach
+        const rangeTop = h * 0.15;     // top of range (value = +1)
+        const rangeBot = h * 0.90;     // bottom of range (value = -1)
+        const frac = 1 - Math.max(0, Math.min(1, (touchY - rangeTop) / (rangeBot - rangeTop)));
+        return frac * 2 - 1; // -1 to +1
+    }
+
+    // === CANOPY TOGGLE PROCESSING (unchanged logic, but only runs under canopy) ===
+    function processCanopyTouches() {
         const leftY = touches.left;
         const rightY = touches.right;
 
-        // Reset all
         input.left = false; input.right = false;
         input.down = false; input.flare = false;
         input.leftDepth = 0; input.rightDepth = 0;
 
         if (leftY !== null && rightY !== null) {
-            // Both sides touched
             const lDepth = getTouchDepth(leftY);
             const rDepth = getTouchDepth(rightY);
             const avgDepth = (lDepth + rDepth) / 2;
             const depthDiff = Math.abs(lDepth - rDepth);
-
             if (depthDiff > 0.3) {
-                // Brake turn: asymmetric input
-                // Deeper side is the turning side
                 if (lDepth > rDepth) {
-                    input.left = true;
-                    input.leftDepth = lDepth;
-                    input.rightDepth = rDepth;
-                    input.down = true; // partial brakes on light side
+                    input.left = true; input.leftDepth = lDepth; input.rightDepth = rDepth; input.down = true;
                 } else {
-                    input.right = true;
-                    input.rightDepth = rDepth;
-                    input.leftDepth = lDepth;
-                    input.down = true;
+                    input.right = true; input.rightDepth = rDepth; input.leftDepth = lDepth; input.down = true;
                 }
             } else if (avgDepth > 0.75) {
-                // Both low on screen = full flare
-                input.flare = true;
-                input.leftDepth = lDepth;
-                input.rightDepth = rDepth;
+                input.flare = true; input.leftDepth = lDepth; input.rightDepth = rDepth;
             } else {
-                // Both high/mid = half brakes (down input)
-                input.down = true;
-                input.leftDepth = lDepth;
-                input.rightDepth = rDepth;
+                input.down = true; input.leftDepth = lDepth; input.rightDepth = rDepth;
             }
         } else if (leftY !== null) {
-            // Left side only
-            input.left = true;
-            input.leftDepth = getTouchDepth(leftY);
+            input.left = true; input.leftDepth = getTouchDepth(leftY);
         } else if (rightY !== null) {
-            // Right side only
-            input.right = true;
-            input.rightDepth = getTouchDepth(rightY);
+            input.right = true; input.rightDepth = getTouchDepth(rightY);
         }
 
         updateIndicator('left', leftY);
         updateIndicator('right', rightY);
     }
 
-    // Touch event handlers on left/right zones
-    function handleTouch(e, side) {
-        e.preventDefault();
-        const touch = e.touches[0] || e.changedTouches[0];
-        if (touch) touches[side] = touch.clientY;
-        processTouches();
+    // === FREEFALL CIRCLE PROCESSING ===
+    function processFreefallCircles(side, touchY) {
+        const dc = window._dualCircle;
+        if (touchY !== null) {
+            dc[side + 'Val'] = getCircleValue(touchY);
+            dc[side + 'Active'] = true;
+        } else {
+            dc[side + 'Active'] = false;
+            dc[side + 'Val'] = 0;
+        }
+        // Freefall inputs are updated each frame by updateDualCircleInputs() in gameLoop
+    }
+
+    // === PHASE-AWARE TOUCH HANDLER ===
+    function handleSideTouch(side, touchY) {
+        const isFreefall = physics && physics.phase === 'freefall';
+        if (isFreefall) {
+            processFreefallCircles(side, touchY);
+        } else {
+            touches[side] = touchY;
+            processCanopyTouches();
+        }
     }
 
     const leftZone = document.getElementById('touch-left');
     const rightZone = document.getElementById('touch-right');
 
+    // Multi-touch handlers: track each side by touch identifier
     leftZone.addEventListener('touchstart', (e) => {
-        for (const t of e.changedTouches) { touches.left = t.clientY; }
-        processTouches(); e.preventDefault();
+        const dc = window._dualCircle;
+        for (const t of e.changedTouches) {
+            dc.leftTouchId = t.identifier;
+            handleSideTouch('left', t.clientY);
+        }
+        e.preventDefault();
     }, { passive: false });
     leftZone.addEventListener('touchmove', (e) => {
-        for (const t of e.changedTouches) { touches.left = t.clientY; }
-        processTouches(); e.preventDefault();
+        const dc = window._dualCircle;
+        for (const t of e.changedTouches) {
+            if (t.identifier === dc.leftTouchId || !dc.leftActive) {
+                handleSideTouch('left', t.clientY);
+            }
+        }
+        e.preventDefault();
     }, { passive: false });
     leftZone.addEventListener('touchend', (e) => {
-        touches.left = null; processTouches(); e.preventDefault();
+        const dc = window._dualCircle;
+        for (const t of e.changedTouches) {
+            if (t.identifier === dc.leftTouchId) {
+                dc.leftTouchId = null;
+                handleSideTouch('left', null);
+            }
+        }
+        e.preventDefault();
     }, { passive: false });
     leftZone.addEventListener('touchcancel', (e) => {
-        touches.left = null; processTouches();
+        window._dualCircle.leftTouchId = null;
+        handleSideTouch('left', null);
     });
 
     rightZone.addEventListener('touchstart', (e) => {
-        for (const t of e.changedTouches) { touches.right = t.clientY; }
-        processTouches(); e.preventDefault();
+        const dc = window._dualCircle;
+        for (const t of e.changedTouches) {
+            dc.rightTouchId = t.identifier;
+            handleSideTouch('right', t.clientY);
+        }
+        e.preventDefault();
     }, { passive: false });
     rightZone.addEventListener('touchmove', (e) => {
-        for (const t of e.changedTouches) { touches.right = t.clientY; }
-        processTouches(); e.preventDefault();
+        const dc = window._dualCircle;
+        for (const t of e.changedTouches) {
+            if (t.identifier === dc.rightTouchId || !dc.rightActive) {
+                handleSideTouch('right', t.clientY);
+            }
+        }
+        e.preventDefault();
     }, { passive: false });
     rightZone.addEventListener('touchend', (e) => {
-        touches.right = null; processTouches(); e.preventDefault();
+        const dc = window._dualCircle;
+        for (const t of e.changedTouches) {
+            if (t.identifier === dc.rightTouchId) {
+                dc.rightTouchId = null;
+                handleSideTouch('right', null);
+            }
+        }
+        e.preventDefault();
     }, { passive: false });
     rightZone.addEventListener('touchcancel', (e) => {
-        touches.right = null; processTouches();
+        window._dualCircle.rightTouchId = null;
+        handleSideTouch('right', null);
     });
 
     // Deploy button
@@ -6474,19 +6551,8 @@ function setupTouchControls() {
             camDragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
             if (isFreefall) {
-                // Freefall with tilt: tilt handles body position, touch is camera only
-                // Freefall without tilt: fallback to swipe pitch controls
-                if (!window._tiltControl.active) {
-                    const totalDy = e.touches[0].clientY - centerTouchStart.y;
-                    if (totalDy < -30) {
-                        input.up = true; input.down = false;
-                    } else if (totalDy > 30) {
-                        input.down = true; input.up = false;
-                    } else {
-                        input.up = false; input.down = false;
-                    }
-                }
-                // Camera orbit (both tilt and non-tilt)
+                // Freefall: dual circles handle body position via side zones.
+                // Center zone is camera orbit only (both horizontal and vertical).
                 if (Math.abs(dx) > 1) {
                     const target = sceneManager.orbitControls.target;
                     const offset = new THREE.Vector3().subVectors(sceneManager.camera.position, target);
@@ -6499,8 +6565,7 @@ function setupTouchControls() {
                     sceneManager.camera.position.copy(target).add(offset);
                     sceneManager.camera.lookAt(target);
                 }
-                // Vertical drag orbits camera vertically (tilt mode) or is handled above (non-tilt)
-                if (window._tiltControl.active && Math.abs(dy) > 1) {
+                if (Math.abs(dy) > 1) {
                     const target = sceneManager.orbitControls.target;
                     const offset = new THREE.Vector3().subVectors(sceneManager.camera.position, target);
                     const dist = offset.length();
@@ -6537,11 +6602,6 @@ function setupTouchControls() {
         if (e.touches.length < 1) {
             camDragStart = null;
             centerTouchStart = null;
-            // Release freefall pitch inputs (only if tilt isn't controlling them)
-            if (!window._tiltControl || !window._tiltControl.active) {
-                input.up = false;
-                input.down = false;
-            }
         }
     });
 
@@ -6549,17 +6609,32 @@ function setupTouchControls() {
     setInterval(() => {
         const inFlight = isRunning && physics && (physics.phase === 'freefall' || physics.phase === 'canopy' || physics.phase === 'deploying');
         overlay.style.display = inFlight ? 'block' : 'none';
+        const isFreefall = physics && physics.phase === 'freefall';
+        const isCanopy = physics && (physics.phase === 'canopy' || physics.phase === 'deploying');
         // Bottom center: PULL during freefall, eye during canopy
         const pullBtnEl = document.getElementById('pull-btn');
         const flipBtnEl2 = document.getElementById('camera-flip-btn');
-        if (pullBtnEl) pullBtnEl.style.display = (physics && physics.phase === 'freefall') ? 'flex' : 'none';
+        if (pullBtnEl) pullBtnEl.style.display = isFreefall ? 'flex' : 'none';
         if (flipBtnEl2) flipBtnEl2.style.display = (physics && physics.phase === 'canopy') ? 'flex' : 'none';
+        // Show freefall circles during freefall, canopy depth bars during canopy
+        const ffCircleL = document.getElementById('ff-circle-left');
+        const ffCircleR = document.getElementById('ff-circle-right');
+        const depthL = document.getElementById('touch-depth-left');
+        const depthR = document.getElementById('touch-depth-right');
+        if (ffCircleL) ffCircleL.style.display = isFreefall ? 'block' : 'none';
+        if (ffCircleR) ffCircleR.style.display = isFreefall ? 'block' : 'none';
+        if (depthL) depthL.style.display = isCanopy ? 'block' : 'none';
+        if (depthR) depthR.style.display = isCanopy ? 'block' : 'none';
+        // Hide body HUD when not in freefall
+        if (!isFreefall) {
+            const hudEl = document.getElementById('ff-body-hud');
+            if (hudEl) hudEl.style.display = 'none';
+        }
         // Mobile start, change DZ, and winds aloft visibility
         const startBtn = document.getElementById('mobile-start-btn');
         const waPanel = document.getElementById('winds-aloft-panel');
         const preflight = !isRunning && simInitialized;
         if (startBtn) startBtn.style.display = preflight ? 'block' : 'none';
-        // Winds aloft: large on right during preflight, hidden during flight
         if (waPanel) {
             if (preflight) {
                 waPanel.classList.add('preflight');
@@ -6652,10 +6727,11 @@ window.startJump = function() {
     // Reset FPV and body position
     fpvMode = false;
     input.ffPosition = 'belly';
-    if (window._tiltControl) {
-        window._tiltControl._calibratedThisJump = false;
-        // Re-request tilt permission if not yet granted (iOS needs gesture context)
-        if (!window._tiltControl.permitted) requestTiltPermission();
+    if (window._dualCircle) {
+        window._dualCircle.leftActive = false;
+        window._dualCircle.rightActive = false;
+        window._dualCircle.leftVal = 0;
+        window._dualCircle.rightVal = 0;
     }
     if (sceneManager) {
         sceneManager.orbitControls.enabled = true;
