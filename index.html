@@ -580,7 +580,11 @@
             <option value="backfly">Back Fly (115 mph)</option>
         </select>
     </div>
-    <div style="margin-top:12px;">
+    <div id="desktop-exit-hint" style="margin-top:10px;padding:5px 8px;background:rgba(59,130,246,0.1);
+        border:1px solid rgba(59,130,246,0.3);border-radius:6px;font-size:11px;color:rgba(255,255,255,0.75);text-align:center;">
+        Drag the <span style="color:#3b82f6;font-weight:bold;">blue circle</span> to set plane exit position
+    </div>
+    <div style="margin-top:8px;">
         <button class="primary" onclick="startJump()" id="btn-jump">Start Jump</button>
     </div>
     <div style="margin-top:6px;">
@@ -714,11 +718,17 @@
     z-index:200;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">&#x1F441;</div>
 
 <!-- Mobile controls -->
+<div id="mobile-exit-hint" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.75);color:rgba(255,255,255,0.9);padding:6px 14px;border-radius:8px;
+    font:12px/1.3 sans-serif;z-index:499;text-align:center;white-space:nowrap;
+    border:1px solid rgba(59,130,246,0.4);pointer-events:none;">
+    Drag the <span style="color:#3b82f6;font-weight:bold;">blue circle</span> to set exit position
+</div>
 <button id="mobile-start-btn">Start Jump</button>
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.64 &middot; Jun 12, 2026 &middot; 12:38 PM EST</div>
+<div id="version-badge">v1.66 &middot; Jun 12, 2026 &middot; 12:45 PM EST</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2647,6 +2657,7 @@ class SceneManager {
 
         // Track manual camera — once user adjusts, auto-follow stays off until eye btn resets it
         this._userCamOverride = false;
+        this._lastCamPhase = null; // track phase transitions for camera snaps
         const markUserCam = () => { this._userCamOverride = true; };
         this.renderer.domElement.addEventListener('mousedown', markUserCam);
         this.renderer.domElement.addEventListener('wheel', markUserCam);
@@ -5295,6 +5306,24 @@ class SceneManager {
     updateCamera(state, fpv) {
         const targetPos = new THREE.Vector3(state.position.x, state.position.y, state.position.z);
 
+        // Detect phase transitions for camera snaps
+        if (state.phase !== this._lastCamPhase) {
+            if (state.phase === 'freefall' && this._lastCamPhase === 'aircraft') {
+                // Snap camera to top-down view looking at earth with diver centered
+                this._userCamOverride = false;
+                this.camera.position.set(
+                    state.position.x,
+                    state.position.y + 20,
+                    state.position.z
+                );
+                this.camera.up.set(0, 0, 1); // north up initially
+                this.camera.lookAt(state.position.x, state.position.y - 500, state.position.z);
+                this.orbitControls.target.copy(targetPos);
+                this.orbitControls.enabled = true;
+            }
+            this._lastCamPhase = state.phase;
+        }
+
         if (state.phase === 'aircraft') {
             // One smooth continuous shot: ahead → sweep past side → watch exit
             const jrh = state.jumpRunHeading || 0;
@@ -5961,9 +5990,11 @@ function initSimulator(dzInfo) {
 
     requestAnimationFrame(gameLoop);
 
-    // Show mobile start button now that sim is ready
+    // Show mobile start button and exit hint now that sim is ready
     const mBtn = document.getElementById('mobile-start-btn');
     if (mBtn) mBtn.style.display = 'block';
+    const mHint = document.getElementById('mobile-exit-hint');
+    if (mHint && window.isMobileDevice) mHint.style.display = 'block';
 }
 
 function updateWindDisplays(phase, altM, windObj, jumperHeading) {
@@ -6949,9 +6980,11 @@ window.startJump = function() {
     ui.hideLandingScore();
     sceneManager.updateCanopyColor(document.getElementById('canopy-model').value);
     sceneManager.camera.position.set(physics.position.x + 50, physics.position.y + 20, physics.position.z - 30);
-    // Hide mobile start button during flight
+    // Hide mobile start button and exit hint during flight
     const mBtn = document.getElementById('mobile-start-btn');
     if (mBtn) mBtn.style.display = 'none';
+    const mHint = document.getElementById('mobile-exit-hint');
+    if (mHint) mHint.style.display = 'none';
     // Close mobile settings if open
     if (window._mobileSettingsOpen) toggleMobileSettings();
     } catch(err) { console.error('Start jump error:', err); document.title = 'ERR: ' + err.message; }
@@ -6975,9 +7008,11 @@ window.resetSim = function() {
     sceneManager.aircraft.visible = false;
     sceneManager._exitViewSet = false; // re-snap exit view camera on next frame
     sceneManager.camera.position.set(0, exitAlt * CONFIG.FT_TO_M + 20, -50);
-    // Show mobile start button again
+    // Show mobile start button and exit hint again
     const mBtn = document.getElementById('mobile-start-btn');
     if (mBtn && window.isMobileDevice) mBtn.style.display = 'block';
+    const mHint = document.getElementById('mobile-exit-hint');
+    if (mHint && window.isMobileDevice) mHint.style.display = 'block';
 };
 
 window.toggleSound = function() {
