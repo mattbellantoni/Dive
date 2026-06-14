@@ -442,11 +442,11 @@
     </div>
 </div>
 <!-- Old heading HUD item removed — replaced by heading tape below -->
-<!-- Heading tape HUD — 180° arc display -->
-<div id="heading-tape" style="position:fixed;top:38px;left:50%;transform:translateX(-50%);
-    width:280px;height:24px;overflow:hidden;z-index:100;display:none;
-    background:rgba(0,0,0,0.5);border-radius:4px;border:1px solid rgba(255,255,255,0.15);">
-    <canvas id="heading-tape-canvas" width="280" height="24" style="display:block;"></canvas>
+<!-- Heading tape HUD — compact 180° arc -->
+<div id="heading-tape" style="position:fixed;top:36px;left:50%;transform:translateX(-50%);
+    width:160px;height:18px;overflow:hidden;z-index:100;display:none;
+    background:rgba(0,0,0,0.6);border-radius:3px;border:1px solid rgba(255,255,255,0.1);">
+    <canvas id="heading-tape-canvas" width="160" height="18" style="display:block;"></canvas>
 </div>
 <div id="phase-indicator" class="phase-aircraft">AIRCRAFT</div>
 <div id="camera-mode" style="position:fixed;top:40px;right:10px;background:rgba(0,0,0,0.7);color:#60a5fa;padding:3px 10px;border-radius:4px;font:bold 11px sans-serif;z-index:100;border:1px solid rgba(96,165,250,0.3);display:none;">FPV</div>
@@ -737,7 +737,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.69 &middot; Jun 14, 2026 &middot; 12:17 AM EST</div>
+<div id="version-badge">v1.70 &middot; Jun 14, 2026 &middot; 12:37 AM EST</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -3133,38 +3133,8 @@ class SceneManager {
         river.renderOrder = 3;
         this.scene.add(river);
 
-        // ---- BUILDINGS ----
-        const buildingDefs = [
-            // Hangar (large)
-            { x: 160, z: -130, w: 40, h: 12, d: 22, wallColor: 0x8a8a8a, roofColor: 0xcc3333 },
-            // Manifest / office
-            { x: 120, z: -90,  w: 16, h:  6, d: 10, wallColor: 0xd4c4a0, roofColor: 0x8b6914 },
-            // Small shed / equipment
-            { x: 200, z: -100, w: 10, h:  5, d:  8, wallColor: 0xb0a080, roofColor: 0x556b2f },
-            // Second hangar farther out
-            { x:-150, z: -180, w: 36, h: 11, d: 20, wallColor: 0x7a8090, roofColor: 0xaa2222 },
-            // Small building cluster
-            { x:-180, z: -140, w: 12, h:  5, d:  9, wallColor: 0xc8b89a, roofColor: 0x7a5c1e },
-            { x:-140, z: -120, w:  8, h:  4, d:  7, wallColor: 0xbcaa90, roofColor: 0x4a3a18 },
-        ];
-
-        buildingDefs.forEach(b => {
-            // Walls
-            const wallGeo = new THREE.BoxGeometry(b.w, b.h, b.d);
-            const wallMat = new THREE.MeshLambertMaterial({ color: b.wallColor });
-            const walls = new THREE.Mesh(wallGeo, wallMat);
-            walls.position.set(b.x, b.h / 2, b.z);
-            this.scene.add(walls);
-
-            // Peaked roof
-            const roofH = b.h * 0.4;
-            const roofGeo = new THREE.CylinderGeometry(0, b.w * 0.62, roofH, 4);
-            const roofMat = new THREE.MeshLambertMaterial({ color: b.roofColor });
-            const roof = new THREE.Mesh(roofGeo, roofMat);
-            roof.rotation.y = Math.PI / 4; // align ridge along length
-            roof.position.set(b.x, b.h + roofH / 2, b.z);
-            this.scene.add(roof);
-        });
+        // Buildings removed — satellite imagery shows real structures at each DZ.
+        // Generic hardcoded buildings were inaccurate for most dropzones.
     }
 
     // Blend between wide and detail textures based on altitude
@@ -4373,27 +4343,45 @@ class SceneManager {
                 const turnDeform = turnRate * 0.08 * (u - 0.5) *
                                    Math.sin(v * Math.PI);
 
-                // Flare deformation: trailing edge pulls up, cells reshape
+                // Brake/riser deformation: trailing edge shape changes with input
+                let brakeDeform = 0;
+                if (input.down || input.rearRiser) {
+                    // Brakes pull trailing edge down, cells puff up at front
+                    const depth = input.rearRiser ? 0.4 : 0.7;
+                    brakeDeform = depth * (v > 0.6 ? -(v - 0.6) * 1.5 : v * 0.15);
+                }
+                if (input.up) {
+                    // Front risers: nose compresses, cells flatten
+                    brakeDeform = -0.12 * (1 - v) * Math.sin(cellIdx * 0.9 + t * 3);
+                }
+
+                // Flare deformation: trailing edge pulls hard, cells reshape dramatically
                 let flareDeform = 0;
                 let stallCollapse = 0;
                 let stallXCollapse = 0;
                 if (flareT > 0.1) {
-                    const flareMag = Math.min(flareT / 1.5, 1);
-                    flareDeform = flareMag * v * v * 0.3; // TE lifts
+                    const flareMag = Math.min(flareT / 1.0, 1);
+                    // TE gets pulled down aggressively, LE lifts
+                    flareDeform = flareMag * (v > 0.5 ? -(v - 0.5) * 0.8 : (0.5 - v) * 0.3);
                 }
-                // Stall collapse: after 3.5s flare, canopy deflates and folds
-                if (flareT > 3.5) {
-                    const stallT = Math.min((flareT - 3.5) / 2.0, 1);
+                // Stall collapse: after 2.5s sustained flare, canopy deflates and crumples
+                if (flareT > 2.5) {
+                    const stallT = Math.min((flareT - 2.5) / 1.5, 1);
                     const cellPhase2 = (u * cells) % 1;
                     const cellCenter = Math.sin(cellPhase2 * Math.PI);
-                    stallCollapse = -stallT * cellCenter * 1.5;
-                    stallXCollapse = stallT * tipDist * tipDist * 2.0;
-                    stallCollapse += stallT * 0.4 * Math.sin(t * 12 + ix * 0.8);
+                    // Cells collapse inward — fabric crumples
+                    stallCollapse = -stallT * cellCenter * 2.0;
+                    // Tips fold in dramatically
+                    stallXCollapse = stallT * tipDist * tipDist * 3.0;
+                    // Chaotic flutter as fabric loses pressure
+                    stallCollapse += stallT * 0.6 * Math.sin(t * 14 + ix * 1.2);
+                    // Whole canopy sags — center drops more than edges
+                    stallCollapse -= stallT * (1 - tipDist) * 1.2;
                 }
 
                 // Apply Y deformation
                 pos[idx + 1] = base[idx + 1] + breathe + teFlutter + ripple +
-                               tipFlutter + gustDeform + turnDeform + flareDeform + stallCollapse;
+                               tipFlutter + gustDeform + turnDeform + brakeDeform + flareDeform + stallCollapse;
 
                 // X deformation: tip flutter + stall collapse (tips fold inward)
                 if (tipDist > 0.3) {
@@ -5194,33 +5182,39 @@ class SceneManager {
 
                 if (input.flare || (state.flareTimer || 0) > 0.1) {
                     // Flare recovery arc animation:
-                    // Phase 1: Nose rises sharply (toggles pull trailing edge, nose pitches up)
-                    // Phase 2: Canopy levels out in float, slight nose-high attitude
-                    // Phase 3: Stall — nose drops as canopy loses energy
+                    // Phase 1: Nose rises sharply (toggles pull trailing edge hard, nose pitches up)
+                    // Phase 2: Canopy floats, nose-high, decelerating
+                    // Phase 3: Stall — nose drops, canopy collapses and sags forward
                     const ft = state.flareTimer || 0;
-                    if (ft < 1.5) {
-                        // Nose UP, canopy rises
-                        const t = ft / 1.5;
-                        canopyPitch = 0.25 + t * 0.15;    // nose rises ~15-25°
-                        canopyYOffset += t * 2.0;           // canopy lifts above pilot
+                    if (ft < 1.2) {
+                        // Aggressive nose UP — canopy surges and rises
+                        const t = ft / 1.2;
+                        canopyPitch = 0.35 + t * 0.20;     // nose rises ~20-32°
+                        canopyYOffset += t * 2.5;           // canopy pops up above pilot
+                        canopyZOffset -= t * 0.8;           // canopy moves slightly forward
                     } else if (ft < 2.5) {
-                        // Float: canopy mostly level, slightly nose-high
-                        const t = (ft - 1.5) / 1.0;
-                        canopyPitch = 0.40 - t * 0.25;     // settling from 25° toward ~10°
-                        canopyYOffset += 2.0 - t * 0.5;    // slowly descending
+                        // Float: canopy high, gradually losing energy
+                        const t = (ft - 1.2) / 1.3;
+                        canopyPitch = 0.55 - t * 0.30;     // settling from peak to ~15°
+                        canopyYOffset += 2.5 - t * 1.0;    // slowly descending
+                        canopyZOffset -= 0.8 + t * 0.2;
                     } else {
-                        // Stall: nose drops, canopy sags
-                        const t = Math.min(ft - 2.5, 1.5);
-                        canopyPitch = 0.15 - t * 0.3;      // nose drops below level
-                        canopyYOffset += 1.5 - t * 1.5;    // canopy sinks toward pilot
+                        // Stall: nose drops hard, canopy surges forward and collapses
+                        const t = Math.min(ft - 2.5, 2.0);
+                        canopyPitch = 0.25 - t * 0.45;     // nose drops aggressively below level
+                        canopyYOffset += 1.5 - t * 2.0;    // canopy sinks rapidly toward/past pilot
+                        canopyZOffset -= 1.0 - t * 1.5;    // canopy surges forward
                     }
-                } else if (input.down) {
-                    // Half brakes: slight pitch back
-                    canopyPitch = 0.08;
+                } else if (input.down || input.rearRiser) {
+                    // Brakes: visible nose-up pitch — trailing edge pulled, AoA increases
+                    const brakeDepth = input.rearRiser ? 0.5 : 1.0;
+                    canopyPitch = 0.18 * brakeDepth;      // ~10° nose-up — clearly visible
+                    canopyYOffset += 0.4 * brakeDepth;    // canopy lifts slightly
                 } else if (input.up) {
-                    // Speed bar: nose dips slightly
-                    canopyPitch = -0.06;
-                    canopyYOffset -= 0.3;
+                    // Front risers: nose dives, canopy drops below jumper
+                    canopyPitch = -0.15;                   // ~9° nose-down — aggressive dive
+                    canopyYOffset -= 0.8;                  // canopy descends relative to jumper
+                    canopyZOffset += 0.3;                  // pulls slightly forward
                 }
 
                 let canopyRoll = state.bankAngle || 0;
@@ -5809,55 +5803,46 @@ class UIController {
         const canvas = this.el.headingCanvas;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const w = 280, h = 24;
+        const w = 160, h = 18;
         ctx.clearRect(0, 0, w, h);
 
-        // Draw 180° of heading tape centered on current heading
-        const degsPerPixel = 180 / w; // 180° spans full width
+        // 180° arc centered on current heading, compact layout
+        const degsPerPixel = 180 / w;
         const cardinals = ['N','NE','E','SE','S','SW','W','NW'];
         const cardinalDegs = [0, 45, 90, 135, 180, 225, 270, 315];
 
-        ctx.font = '9px monospace';
         ctx.textAlign = 'center';
 
-        // Draw tick marks and labels across the 180° window
         for (let offset = -90; offset <= 90; offset += 5) {
             let deg = ((headingDeg + offset) % 360 + 360) % 360;
             const x = w / 2 + offset / degsPerPixel;
             if (x < 0 || x > w) continue;
 
-            const isMajor = deg % 10 === 0;
             const isCardinal = cardinalDegs.includes(Math.round(deg));
+            const isMajor = deg % 10 === 0;
 
             if (isCardinal) {
-                ctx.fillStyle = '#f59e0b';
-                ctx.fillRect(x - 0.5, 0, 1, 10);
-                ctx.fillText(cardinals[cardinalDegs.indexOf(Math.round(deg))], x, 20);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(x - 0.5, 0, 1, 7);
+                ctx.font = 'bold 7px monospace';
+                ctx.fillText(cardinals[cardinalDegs.indexOf(Math.round(deg))], x, 15);
             } else if (isMajor) {
-                ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                ctx.fillRect(x - 0.5, 2, 1, 7);
-                ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                ctx.font = '8px monospace';
-                ctx.fillText(Math.round(deg) + '°', x, 19);
-                ctx.font = '9px monospace';
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.fillRect(x - 0.5, 2, 1, 4);
             } else {
-                ctx.fillStyle = 'rgba(255,255,255,0.25)';
-                ctx.fillRect(x - 0.5, 4, 1, 4);
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.fillRect(x - 0.5, 3, 1, 2);
             }
         }
 
-        // Center marker (current heading indicator)
+        // Center caret
         ctx.fillStyle = '#10b981';
         ctx.beginPath();
-        ctx.moveTo(w/2 - 4, 0);
-        ctx.lineTo(w/2 + 4, 0);
-        ctx.lineTo(w/2, 5);
+        ctx.moveTo(w/2 - 3, 0);
+        ctx.lineTo(w/2 + 3, 0);
+        ctx.lineTo(w/2, 4);
         ctx.closePath();
         ctx.fill();
-        // Current heading number
-        ctx.fillStyle = '#10b981';
-        ctx.font = 'bold 10px monospace';
-        ctx.fillText(Math.round(headingDeg) + '°', w/2, 22);
     }
 
     updateInput(input) {
