@@ -302,8 +302,8 @@
             #phase-indicator { top: 42px; font-size: 8px; padding: 2px 8px; }
 
             /* Heading tape compass — below HUD on mobile */
-            #heading-tape { top: 38px !important; width: 140px !important; height: 18px !important; }
-            #heading-tape canvas { width: 140px !important; height: 18px !important; }
+            #heading-tape { top: 44px !important; width: 160px !important; height: 28px !important; }
+            #heading-tape canvas { width: 160px !important; height: 28px !important; }
 
             /* Wind indicator — top center below phase */
             #wind-indicator { top: 58px; padding: 4px 6px; }
@@ -356,9 +356,7 @@
             .wa-dir, .wa-spd, .wa-gust { font-size: 7px; width: auto; }
             #wa-source { font-size: 6px; }
 
-            /* Stability HUD above the three boxes */
-            #stability-hud { bottom: 80px !important; }
-            #stability-hud #stab-pos { font-size: 11px !important; padding: 3px 10px !important; }
+            /* Stability HUD removed */
 
             /* DZ selector mobile */
             #dz-header h1 { font-size: 15px; }
@@ -384,7 +382,7 @@
             #compass-canvas { width: 50px; height: 50px; }
             #flight-stats-panel { font-size: 7px !important; padding: 3px 4px !important; }
             #winds-aloft-panel { font-size: 7px !important; padding: 3px 4px !important; }
-            #stability-hud { bottom: 65px !important; }
+            /* stability-hud removed */
             #mobile-start-btn { bottom: 10px; padding: 12px 30px; font-size: 16px; }
         }
     </style>
@@ -447,10 +445,10 @@
 </div>
 <!-- Old heading HUD item removed — replaced by heading tape below -->
 <!-- Heading tape HUD — compact 180° arc -->
-<div id="heading-tape" style="position:fixed;top:68px;left:50%;transform:translateX(-50%);
-    width:200px;height:22px;overflow:hidden;z-index:100;display:none;
+<div id="heading-tape" style="position:fixed;top:78px;left:50%;transform:translateX(-50%);
+    width:220px;height:34px;overflow:hidden;z-index:100;display:none;
     background:rgba(0,0,0,0.7);border-radius:10px;border:1px solid rgba(255,255,255,0.15);">
-    <canvas id="heading-tape-canvas" width="200" height="22" style="display:block;"></canvas>
+    <canvas id="heading-tape-canvas" width="220" height="34" style="display:block;"></canvas>
 </div>
 <div id="phase-indicator" class="phase-aircraft">AIRCRAFT</div>
 <div id="camera-mode" style="position:fixed;top:40px;right:10px;background:rgba(0,0,0,0.7);color:#60a5fa;padding:3px 10px;border-radius:4px;font:bold 11px sans-serif;z-index:100;border:1px solid rgba(96,165,250,0.3);display:none;">FPV</div>
@@ -459,8 +457,8 @@
 </div>
 
 <!-- LEFT PANEL — Wind -->
-<div class="panel panel-left">
-    <h3>Wind Configuration</h3>
+<div class="panel panel-left" id="wind-panel">
+    <h3 style="cursor:pointer;user-select:none;" onclick="this.parentElement.classList.toggle('panel-collapsed')">Winds Aloft Data <span style="float:right;opacity:0.4;font-size:8px;">&#x25B2;&#x25BC;</span></h3>
     <div class="control-group">
         <label><span>Upper (8000ft+)</span><span class="val" id="wind-upper-val">15 kts</span></label>
         <input type="range" id="wind-upper" min="0" max="50" value="15">
@@ -493,8 +491,8 @@
 </div>
 
 <!-- RIGHT PANEL — Jump & Canopy -->
-<div class="panel panel-right">
-    <h3>Dropzone</h3>
+<div class="panel panel-right" id="jump-panel">
+    <h3 style="cursor:pointer;user-select:none;" onclick="this.parentElement.classList.toggle('panel-collapsed')">Jump Settings <span style="float:right;opacity:0.4;font-size:8px;">&#x25B2;&#x25BC;</span></h3>
     <div class="control-group">
         <select id="settings-dz-select" style="width:100%;padding:6px 8px;border-radius:6px;background:#1e293b;color:#e2e8f0;border:1px solid #475569;font-size:12px;">
             <option value="">— Select a dropzone —</option>
@@ -567,7 +565,6 @@
         </div>
     </div>
     <hr>
-    <h3>Jump Settings</h3>
     <div class="control-group">
         <label><span>Exit Altitude</span><span class="val" id="exit-alt-val">13000 ft</span></label>
         <input type="range" id="exit-alt" min="3000" max="18000" step="500" value="13000">
@@ -592,6 +589,12 @@
             <option value="sitfly">Sit Fly (140 mph)</option>
             <option value="backfly">Back Fly (115 mph)</option>
         </select>
+    </div>
+    <div class="control-group" style="margin-top:8px;">
+        <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+            <span>Landing Projection</span>
+            <input type="checkbox" id="landing-proj-toggle" checked style="width:16px;height:16px;">
+        </label>
     </div>
     <div id="desktop-exit-hint" style="margin-top:10px;padding:5px 8px;background:rgba(59,130,246,0.1);
         border:1px solid rgba(59,130,246,0.3);border-radius:6px;font-size:11px;color:rgba(255,255,255,0.75);text-align:center;">
@@ -729,6 +732,10 @@
     width:50px;height:50px;border-radius:50%;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.3);
     display:none;align-items:center;justify-content:center;color:#fff;font-size:22px;
     z-index:200;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">&#x1F441;</div>
+<div id="landing-proj-btn" title="Landing Projection" style="position:fixed;bottom:12px;left:calc(50% + 60px);
+    width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,0.8);border:1px solid rgba(57,255,20,0.5);
+    display:none;align-items:center;justify-content:center;color:#39ff14;font-size:20px;
+    z-index:200;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">&#x1F3AF;</div>
 
 <!-- Mobile controls -->
 <div id="mobile-exit-hint" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
@@ -741,7 +748,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.71 &middot; Jun 14, 2026</div>
+<div id="version-badge">v1.75 &middot; Jun 14, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1127,6 +1134,9 @@ window.toggleMobileSettings = function() {
 window.isMobileDevice = /Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent) ||
     (window.innerWidth <= 768 && 'ontouchstart' in window);
 
+// Landing projection display toggle
+window.showLandingProjection = true;
+
 // Wire up mobile buttons — deferred to end of script to ensure everything is defined
 setTimeout(() => {
     const mStart = document.getElementById('mobile-start-btn');
@@ -1329,6 +1339,21 @@ if (flipBtn) {
     }
     flipBtn.addEventListener('click', doFlip);
     flipBtn.addEventListener('touchstart', (e) => { e.preventDefault(); doFlip(); }, {passive: false});
+}
+
+// Landing projection mobile toggle
+const lpBtn = document.getElementById('landing-proj-btn');
+if (lpBtn) {
+    function toggleLP() {
+        window.showLandingProjection = !window.showLandingProjection;
+        lpBtn.style.background = window.showLandingProjection ? 'rgba(57,255,20,0.3)' : 'rgba(0,0,0,0.7)';
+        lpBtn.style.borderColor = window.showLandingProjection ? 'rgba(57,255,20,0.5)' : 'rgba(255,255,255,0.2)';
+        // Sync desktop toggle
+        const desktopToggle = document.getElementById('landing-proj-toggle');
+        if (desktopToggle) desktopToggle.checked = window.showLandingProjection;
+    }
+    lpBtn.addEventListener('click', toggleLP);
+    lpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleLP(); }, {passive: false});
 }
 
 // ==================== MINIMAP ====================
@@ -1870,19 +1895,21 @@ class SoundSystem {
             this.flutterGain.gain.setTargetAtTime(0, t, smooth);
 
         } else if (state.phase === 'canopy') {
-            // Fade out freefall sounds
+            // Fade out freefall sounds completely
             this.ffGain.gain.setTargetAtTime(0, t, smooth);
             this.ffRumbleGain.gain.setTargetAtTime(0, t, smooth);
 
-            // Canopy wind: based on airspeed (ground speed + wind component)
-            const airspeed = totalSpeed;
-            const windIntensity = Math.min(airspeed / 25, 1.0);
-            this.cpGain.gain.setTargetAtTime(windIntensity * 0.3, t, smooth);
-            this.cpFilter.frequency.setTargetAtTime(250 + windIntensity * 500, t, smooth);
+            // Under canopy: very quiet — no real wind noise, just slight ambient
+            // Real skydiving under canopy is relatively quiet compared to freefall
+            const gustEvent = wind ? (wind.gustEvent || 0) : 0;
+            // Only audible during gusts — otherwise near-silent
+            const gustVol = gustEvent * gustEvent * 0.15; // very subtle
+            this.cpGain.gain.setTargetAtTime(gustVol, t, smooth);
+            this.cpFilter.frequency.setTargetAtTime(200 + gustVol * 300, t, smooth);
 
-            // Flutter: more fabric noise in turns and with speed
+            // Flutter: only audible during turns or gusts — subtle fabric rustle
             const turnMag = Math.abs(state.turnRate || 0);
-            const flutterLevel = Math.min(0.15 + turnMag * 0.15 + windIntensity * 0.1, 0.4);
+            const flutterLevel = Math.min(turnMag * 0.08 + gustEvent * 0.06, 0.15);
             this.flutterGain.gain.setTargetAtTime(flutterLevel, t, smooth);
             this.flutterFilter.frequency.setTargetAtTime(1800 + turnMag * 800, t, smooth);
 
@@ -2490,6 +2517,9 @@ class PhysicsEngine {
         const t = Math.min(this.deployTimer / canopyPerf.deployDuration, 1);
         const sigmoid = 1 / (1 + Math.exp(-10 * (t - 0.5)));
 
+        // Set heading early (into-wind direction) so deployment animation can use it
+        this.heading = Math.atan2(-wind.x, -wind.z);
+
         this.velocity.y = this.velocity.y * (1 - sigmoid) + (-canopyPerf.descentRate) * sigmoid;
         this.velocity.x *= (1 - sigmoid * 0.05);
         this.velocity.z *= (1 - sigmoid * 0.05);
@@ -2504,21 +2534,20 @@ class PhysicsEngine {
 
         if (t >= 1) {
             this.phase = 'canopy';
-            // Face INTO the wind: forward = (sin(h), cos(h)), want opposite of wind direction
-            // wind vector points where wind blows TO. Face opposite = toward wind source.
-            // Face INTO the wind: wind vector points where wind blows TO,
-            // so into-wind = opposite of wind vector
-            this.heading = Math.atan2(-wind.x, -wind.z);
         }
     }
 
     updateCanopy(dt, wind, input, canopyPerf) {
+        // ============ STALL CHECK — disable all inputs if canopy is stalled ============
+        const isStalled = (this.flareTimer || 0) > 2.5;
+
         // ============ TURN DYNAMICS ============
         // Heading = compass bearing (0=N, PI/2=E, PI=S). Increasing = CW = right turn.
         // Right toggle = positive turn (right), left toggle = negative turn (left)
         // Analog toggle depth: touch provides 0-1, keyboard gives full 1.0
-        const leftAmt = input.leftDepth > 0 ? input.leftDepth : (input.left ? 1 : 0);
-        const rightAmt = input.rightDepth > 0 ? input.rightDepth : (input.right ? 1 : 0);
+        // When stalled, no flight inputs are possible — canopy is uncontrollable
+        const leftAmt = isStalled ? 0 : (input.leftDepth > 0 ? input.leftDepth : (input.left ? 1 : 0));
+        const rightAmt = isStalled ? 0 : (input.rightDepth > 0 ? input.rightDepth : (input.right ? 1 : 0));
         const turnInput = leftAmt - rightAmt;
 
         // Turn rate builds up gradually (canopy has inertia), not instant
@@ -2559,13 +2588,16 @@ class PhysicsEngine {
         const riserBoost = canopyPerf.riserBoost || 1.15;
         const rearRiserFactor = canopyPerf.rearRiserFactor || 0.88;
         let speedRatio = 1.0;
-        if (input.up) speedRatio = riserBoost;
-        else if (input.rearRiser) speedRatio = rearRiserFactor;
-        if (input.down) speedRatio = 0.75;
+        // When stalled, no speed inputs — canopy is a limp rag
+        if (!isStalled) {
+            if (input.up) speedRatio = riserBoost;
+            else if (input.rearRiser) speedRatio = rearRiserFactor;
+            if (input.down) speedRatio = 0.75;
+        }
 
         if (input.flare) {
             this.flareTimer = Math.min((this.flareTimer || 0) + dt, 5.0);
-            speedRatio = canopyPerf.flareSpeedBoost;
+            if (!isStalled) speedRatio = canopyPerf.flareSpeedBoost;
         } else {
             this.flareTimer = Math.max((this.flareTimer || 0) - dt * 2, 0);
         }
@@ -2712,6 +2744,7 @@ class SceneManager {
         this.createSkydiver();
         this.createAircraft();
         this.create3DCanopy();
+        this.createDeploymentObjects();
         this.createWindParticles();
         this.createWindSock();
 
@@ -4063,7 +4096,9 @@ class SceneManager {
         });
         teMat._baseOpacity = 0.85;
         this.canopyMaterials.push(teMat);
-        this.canopyGroup.add(new THREE.Mesh(teGeo, teMat));
+        const teMesh = new THREE.Mesh(teGeo, teMat);
+        this.canopyGroup.add(teMesh);
+        this.canopyTEMesh = teMesh;
 
         // ---- NOSE INTAKE OPENINGS (leading edge, v=0) ----
         // A strip showing the open mouth at the front
@@ -4085,12 +4120,15 @@ class SceneManager {
         });
         noseMat._baseOpacity = 0.6;
         this.canopyMaterials.push(noseMat);
-        this.canopyGroup.add(new THREE.Mesh(noseGeo, noseMat));
+        const noseMesh = new THREE.Mesh(noseGeo, noseMat);
+        this.canopyGroup.add(noseMesh);
+        this.canopyNoseMesh = noseMesh;
 
         // ---- CELL RIBS (internal dividers) ----
         const ribMat = new THREE.MeshBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
         ribMat._baseOpacity = 0.25;
         this.canopyMaterials.push(ribMat);
+        this.canopyRibMeshes = [];
         for (let c = 0; c <= cells; c++) {
             const u = c / cells;
             const spanFactor = 1 - 0.15 * Math.pow(2 * u - 1, 2);
@@ -4118,7 +4156,9 @@ class SceneManager {
             ribGeo.setAttribute('position', new THREE.Float32BufferAttribute(ribVerts, 3));
             ribGeo.setIndex(ribIdx);
             ribGeo.computeVertexNormals();
-            this.canopyGroup.add(new THREE.Mesh(ribGeo, ribMat));
+            const ribMesh = new THREE.Mesh(ribGeo, ribMat);
+            this.canopyGroup.add(ribMesh);
+            this.canopyRibMeshes.push(ribMesh);
         }
 
         // ---- TIP PANELS (close the ends of the canopy) ----
@@ -4126,6 +4166,7 @@ class SceneManager {
         const tipMat = new THREE.MeshLambertMaterial({ color: 0x8CD910, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
         tipMat._baseOpacity = 0.7;
         this.canopyMaterials.push(tipMat);
+        this.canopyTipMeshes = [];
         for (const tipSide of [0, segsX]) {
             const tipVerts2 = [], tipIdx2 = [];
             for (let iz = 0; iz <= segsZ; iz++) {
@@ -4141,7 +4182,9 @@ class SceneManager {
             tipGeo.setAttribute('position', new THREE.Float32BufferAttribute(tipVerts2, 3));
             tipGeo.setIndex(tipIdx2);
             tipGeo.computeVertexNormals();
-            this.canopyGroup.add(new THREE.Mesh(tipGeo, tipMat));
+            const tipMesh = new THREE.Mesh(tipGeo, tipMat);
+            this.canopyGroup.add(tipMesh);
+            this.canopyTipMeshes.push(tipMesh);
         }
 
         this.scene.add(this.canopyGroup);
@@ -4170,8 +4213,8 @@ class SceneManager {
         // Real ram-air: lines go straight from each riser point up to their
         // attachment on the canopy bottom skin. No crossing — left lines stay left,
         // right lines stay right. They fan out from narrow riser points to wide canopy.
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: false, transparent: true, opacity: 0.85 });
-        lineMat._baseOpacity = 0.85;
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: true, depthWrite: true, transparent: false, opacity: 1.0 });
+        lineMat._baseOpacity = 1.0;
         this.canopyMaterials.push(lineMat);
         this.suspensionLines = [];
 
@@ -4332,29 +4375,22 @@ class SceneManager {
                     // TE gets pulled down aggressively, LE lifts
                     flareDeform = flareMag * (v > 0.5 ? -(v - 0.5) * 0.8 : (0.5 - v) * 0.3);
                 }
-                // Stall collapse: after 2.5s sustained flare, canopy deflates and crumples
+                // Stall: vertex deformation removed — stall uses group-level
+                // scale/rotate transforms for realistic crumpled fabric look.
+                // Only minor vertex flutter during early stall for fabric loosening effect
                 if (flareT > 2.5) {
                     const stallT = Math.min((flareT - 2.5) / 1.5, 1);
-                    const cellPhase2 = (u * cells) % 1;
-                    const cellCenter = Math.sin(cellPhase2 * Math.PI);
-                    // Cells collapse inward — fabric crumples
-                    stallCollapse = -stallT * cellCenter * 2.0;
-                    // Tips fold in dramatically
-                    stallXCollapse = stallT * tipDist * tipDist * 3.0;
-                    // Chaotic flutter as fabric loses pressure
-                    stallCollapse += stallT * 0.6 * Math.sin(t * 14 + ix * 1.2);
-                    // Whole canopy sags — center drops more than edges
-                    stallCollapse -= stallT * (1 - tipDist) * 1.2;
+                    // Slight flutter as cells lose pressure (not dramatic deformation)
+                    stallCollapse = stallT * 0.3 * Math.sin(t * 5 + ix * 0.7 + iz * 0.9);
                 }
 
                 // Apply Y deformation
                 pos[idx + 1] = base[idx + 1] + breathe + teFlutter + ripple +
                                tipFlutter + gustDeform + turnDeform + brakeDeform + flareDeform + stallCollapse;
 
-                // X deformation: tip flutter + stall collapse (tips fold inward)
+                // X deformation: tip flutter only (stall uses group transforms)
                 if (tipDist > 0.3) {
-                    const tipSign = u > 0.5 ? -1 : 1;
-                    pos[idx] = base[idx] + tipFlutter * 0.3 + tipSign * stallXCollapse;
+                    pos[idx] = base[idx] + tipFlutter * 0.3;
                 } else if (tipDist > 0) {
                     pos[idx] = base[idx] + tipFlutter * 0.2;
                 }
@@ -4375,30 +4411,102 @@ class SceneManager {
                     const tipDist = Math.abs(u - 0.5) * 2;
 
                     let bStallCollapse = 0;
-                    let bStallXCollapse = 0;
                     if (flareT > 2.5) {
                         const stallT = Math.min((flareT - 2.5) / 1.5, 1);
-                        const cellPhase2 = (u * cells) % 1;
-                        const cellCenter = Math.sin(cellPhase2 * Math.PI);
-                        bStallCollapse = -stallT * cellCenter * 2.0;
-                        bStallXCollapse = stallT * tipDist * tipDist * 3.0;
-                        bStallCollapse += stallT * 0.6 * Math.sin(t * 14 + ix * 1.2);
-                        bStallCollapse -= stallT * (1 - tipDist) * 1.2;
+                        // Minor flutter only — main stall handled by group transforms
+                        bStallCollapse = stallT * 0.25 * Math.sin(t * 5 + ix * 0.7 + iz * 0.9);
                     }
 
-                    // Y: breathe + stall collapse
+                    // Y: breathe + stall flutter
                     const bBreathe = Math.sin(t * 2.2 + ix * 0.3) * 0.015;
                     bPos[bIdx + 1] = bBase[bIdx + 1] + bBreathe + bStallCollapse;
-
-                    // X: stall tip fold
-                    if (tipDist > 0.3 && flareT > 2.5) {
-                        const tipSign = u > 0.5 ? -1 : 1;
-                        bPos[bIdx] = bBase[bIdx] + tipSign * bStallXCollapse;
-                    }
                 }
             }
             this.canopyBottomMesh.geometry.attributes.position.needsUpdate = true;
             this.canopyBottomMesh.geometry.computeVertexNormals();
+        }
+
+        // ---- STALL: collapse secondary meshes (nose, ribs, tips, trailing edge) ----
+        // These elements must also visually collapse when the canopy stalls
+        const stallActive = flareT > 2.5;
+        const stallT = stallActive ? Math.min((flareT - 2.5) / 1.5, 1) : 0;
+
+        // Aggressively fade and hide ALL secondary structures during stall
+        // Everything collapses together — nose/TE/ribs/tips all gone by stallT ~0.4
+        if (this.canopyNoseMesh) {
+            const noseMat = this.canopyNoseMesh.material;
+            // Nose is dark (0x0a0a0a) — looks like a shadow if left visible, so hide early
+            const noseFade = stallActive ? Math.max(0, 1 - stallT * 3) : 1; // gone by stallT=0.33
+            noseMat.opacity = noseMat._baseOpacity * noseFade;
+            this.canopyNoseMesh.visible = !stallActive || stallT < 0.35;
+            if (stallActive) {
+                this.canopyNoseMesh.scale.y = 1 - stallT * 2;
+                this.canopyNoseMesh.position.y = -stallT * 3;
+            } else {
+                this.canopyNoseMesh.scale.y = 1;
+                this.canopyNoseMesh.position.y = 0;
+            }
+        }
+        if (this.canopyTEMesh) {
+            const teMat = this.canopyTEMesh.material;
+            const teFade = stallActive ? Math.max(0, 1 - stallT * 2.5) : 1;
+            teMat.opacity = teMat._baseOpacity * teFade;
+            this.canopyTEMesh.visible = !stallActive || stallT < 0.4;
+            if (stallActive) {
+                this.canopyTEMesh.scale.y = 1 - stallT * 1.5;
+                this.canopyTEMesh.position.y = -stallT * 2.5;
+            } else {
+                this.canopyTEMesh.scale.y = 1;
+                this.canopyTEMesh.position.y = 0;
+            }
+        }
+        if (this.canopyRibMeshes) {
+            for (const rib of this.canopyRibMeshes) {
+                const ribFade = stallActive ? Math.max(0, 1 - stallT * 2.5) : 1;
+                rib.material.opacity = rib.material._baseOpacity * ribFade;
+                rib.visible = !stallActive || stallT < 0.4;
+                if (stallActive) {
+                    rib.scale.y = 1 - stallT * 1.5;
+                    rib.position.y = -stallT * 2;
+                } else {
+                    rib.scale.y = 1;
+                    rib.position.y = 0;
+                }
+            }
+        }
+        if (this.canopyTipMeshes) {
+            for (const tip of this.canopyTipMeshes) {
+                const tipFade = stallActive ? Math.max(0, 1 - stallT * 2.5) : 1;
+                tip.material.opacity = tip.material._baseOpacity * tipFade;
+                tip.visible = !stallActive || stallT < 0.4;
+                if (stallActive) {
+                    tip.scale.y = 1 - stallT * 1.5;
+                    tip.position.y = -stallT * 2.5;
+                    const tipSign = tip === this.canopyTipMeshes[0] ? 1 : -1;
+                    tip.position.x = tipSign * stallT * 2.5;
+                } else {
+                    tip.scale.set(1, 1, 1);
+                    tip.position.set(0, 0, 0);
+                }
+            }
+        }
+
+        // Hide deployment objects and loose scene elements during stall
+        if (stallActive) {
+            if (this.flightDBag) this.flightDBag.visible = stallT < 0.3;
+            if (this.collapsedPilotChute) this.collapsedPilotChute.visible = stallT < 0.3;
+            if (this.collapsedBridle) this.collapsedBridle.visible = stallT < 0.3;
+            if (this.collapsedSlider) this.collapsedSlider.visible = stallT < 0.3;
+            // Slider (scene-level) — hide during stall
+            if (this.slider) this.slider.visible = false;
+            // Suspension lines go slack and disappear
+            if (this.suspensionLines) this.suspensionLines.forEach(l => {
+                l.visible = stallT < 0.5;
+            });
+            // Riser lines on the harness — hide
+            if (this.riserLines) this.riserLines.forEach(r => {
+                r.visible = stallT < 0.5;
+            });
         }
     }
 
@@ -4608,6 +4716,378 @@ class SceneManager {
                 cloud.group.position.y = cloud.baseY;
                 cloud.bobPhase = Math.random() * Math.PI * 2;
             }
+        }
+    }
+
+    createDeploymentObjects() {
+        // ---- PILOT CHUTE — small round chute (~1m diameter) ----
+        const pcFabricMat = new THREE.MeshLambertMaterial({
+            color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.9
+        });
+        // Pilot chute: hemisphere shape
+        const pcGeo = new THREE.SphereGeometry(0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6);
+        this.pilotChute = new THREE.Mesh(pcGeo, pcFabricMat);
+        this.pilotChute.visible = false;
+        this.scene.add(this.pilotChute);
+
+        // Pilot chute bridle (line from pilot chute to d-bag/canopy)
+        const bridleMat = new THREE.LineBasicMaterial({ color: 0x444444, linewidth: 1 });
+        const bridleGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -5, 0)
+        ]);
+        this.pilotBridle = new THREE.Line(bridleGeo, bridleMat);
+        this.pilotBridle.visible = false;
+        this.scene.add(this.pilotBridle);
+
+        // ---- DEPLOYMENT BAG (d-bag) — rectangular container ----
+        const dbagMat = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+        this.dBag = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.25), dbagMat);
+        this.dBag.visible = false;
+        this.scene.add(this.dBag);
+
+        // ---- SLIDER — rectangular fabric panel on the lines ----
+        const sliderMat = new THREE.MeshLambertMaterial({
+            color: 0xdddddd, side: THREE.DoubleSide, transparent: true, opacity: 0.7
+        });
+        const sliderGeo = new THREE.PlaneGeometry(2.5, 1.2, 4, 2);
+        this.slider = new THREE.Mesh(sliderGeo, sliderMat);
+        this.slider.visible = false;
+        this.scene.add(this.slider);
+
+        // ---- D-BAG ON TOP OF CANOPY (stays there during flight) ----
+        // The deployment bag sits centered on top of the canopy after opening
+        const flightDbagMat = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+        this.flightDBag = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.25), flightDbagMat);
+        this.flightDBag.visible = false;
+        this.flightDBag.position.set(0, 1.0, 0); // on top center of canopy
+        this.canopyGroup.add(this.flightDBag);
+
+        // ---- COLLAPSED PILOT CHUTE (trails behind trailing edge via bridle) ----
+        // On a real rig, the collapsed PC trails behind the canopy's trailing edge,
+        // connected by a bridle through the center cells to the d-bag on top.
+        // Real PCs are typically bright (white, orange, or neon) and ~28-32" diameter collapsed.
+        const collapsedPCMat = new THREE.MeshLambertMaterial({ color: 0xff6600, transparent: true, opacity: 0.9 });
+        const collapsedPCGeo = new THREE.SphereGeometry(0.45, 8, 6);
+        collapsedPCGeo.scale(1.2, 0.4, 1.2); // flattened/collapsed — wider pancake shape
+        this.collapsedPilotChute = new THREE.Mesh(collapsedPCGeo, collapsedPCMat);
+        this.collapsedPilotChute.visible = false;
+        // Trails behind and below the trailing edge (TE is at ~z=3-4 in canopy coords)
+        this.collapsedPilotChute.position.set(0, -0.5, 5.5);
+        this.canopyGroup.add(this.collapsedPilotChute);
+
+        // Bridle line from d-bag (top of canopy) through TE to collapsed pilot chute
+        const collBridleMat = new THREE.LineBasicMaterial({ color: 0x555555 });
+        const collBridleGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 1.0, 0.12),   // d-bag on top of canopy
+            new THREE.Vector3(0, 0, 3.5),       // exits through trailing edge
+            new THREE.Vector3(0, -0.5, 5.5)     // to collapsed PC trailing behind
+        ]);
+        this.collapsedBridle = new THREE.Line(collBridleGeo, collBridleMat);
+        this.collapsedBridle.visible = false;
+        this.canopyGroup.add(this.collapsedBridle);
+
+        // ---- COLLAPSED SLIDER (bunched at connector links during flight) ----
+        const collSliderMat = new THREE.MeshLambertMaterial({ color: 0xcccccc, transparent: true, opacity: 0.6 });
+        const collSliderGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.3, 8);
+        this.collapsedSlider = new THREE.Mesh(collSliderGeo, collSliderMat);
+        this.collapsedSlider.visible = false;
+        this.collapsedSlider.position.set(0, -6.5, 0); // at connector links level
+        this.canopyGroup.add(this.collapsedSlider);
+
+        // ---- DEPLOYMENT RISERS — visible lines from harness to deployment objects ----
+        // Two lines (left/right shoulder) that connect from the container to whatever is above
+        const deployRiserMat = new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: true, transparent: false });
+        // Left deployment riser: 2-point line (harness → target)
+        const drGeo1 = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 5, 0)
+        ]);
+        this.deployRiserL = new THREE.Line(drGeo1, deployRiserMat);
+        this.deployRiserL.visible = false;
+        this.scene.add(this.deployRiserL);
+        // Right deployment riser
+        const drGeo2 = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 5, 0)
+        ]);
+        this.deployRiserR = new THREE.Line(drGeo2, deployRiserMat);
+        this.deployRiserR.visible = false;
+        this.scene.add(this.deployRiserR);
+
+        // Deployment animation state
+        this.deployAnim = { phase: 'idle', timer: 0 };
+    }
+
+    updateDeploymentAnimation(dt, state) {
+        if (!this.pilotChute) return;
+        const deployT = state.deployTimer || 0;
+        const deployDuration = state.deployDuration || 3.0;
+        const isDeploying = state.phase === 'deploying';
+        const isCanopy = state.phase === 'canopy';
+
+        // Use the skydiver's actual world position as anchor (tracks the falling jumper)
+        const jx = this.skydiver.position.x;
+        const jy = this.skydiver.position.y;
+        const jz = this.skydiver.position.z;
+
+        // During deployment, objects go straight UP from the jumper (belly-to-earth)
+        // The jumper is face-down, so "behind" = up in world space
+        // No heading offset needed — everything extends vertically above the falling jumper
+
+        if (isDeploying) {
+            const p1End = deployDuration * 0.15;
+            const p2End = deployDuration * 0.40;
+            const p3End = deployDuration * 0.75;
+
+            // Harness attachment points (left/right shoulder of container)
+            const harnessSpread = 0.2; // shoulder width offset
+            const harnessY = jy + 0.4;  // container sits on upper back
+
+            if (deployT < p1End) {
+                // Phase 1: Pilot chute thrown from container, catches air
+                const t = deployT / p1End;
+                this.pilotChute.visible = true;
+                this.pilotBridle.visible = true;
+                this.dBag.visible = false;
+
+                const pcScale = 0.3 + t * 0.7;
+                this.pilotChute.scale.set(pcScale, pcScale * 0.6, pcScale);
+                const riseHeight = 1 + t * 5;
+                this.pilotChute.position.set(jx, jy + riseHeight, jz);
+
+                // Bridle from container to pilot chute
+                const bPos = this.pilotBridle.geometry.attributes.position.array;
+                bPos[0] = jx; bPos[1] = harnessY; bPos[2] = jz;
+                bPos[3] = jx; bPos[4] = jy + riseHeight - 0.3; bPos[5] = jz;
+                this.pilotBridle.geometry.attributes.position.needsUpdate = true;
+
+                // Deployment risers from harness to PC base
+                this.deployRiserL.visible = true;
+                this.deployRiserR.visible = true;
+                const drL = this.deployRiserL.geometry.attributes.position.array;
+                drL[0] = jx - harnessSpread; drL[1] = harnessY; drL[2] = jz;
+                drL[3] = jx - harnessSpread * 0.3; drL[4] = jy + riseHeight * 0.5; drL[5] = jz;
+                this.deployRiserL.geometry.attributes.position.needsUpdate = true;
+                const drR = this.deployRiserR.geometry.attributes.position.array;
+                drR[0] = jx + harnessSpread; drR[1] = harnessY; drR[2] = jz;
+                drR[3] = jx + harnessSpread * 0.3; drR[4] = jy + riseHeight * 0.5; drR[5] = jz;
+                this.deployRiserR.geometry.attributes.position.needsUpdate = true;
+
+                this.canopyGroup.visible = false;
+                this.suspensionLines.forEach(l => l.visible = false);
+                if (this.riserLines) this.riserLines.forEach(r => r.visible = false);
+
+            } else if (deployT < p2End) {
+                // Phase 2: D-bag pulled from container, lines stretching out
+                const t = (deployT - p1End) / (p2End - p1End);
+                this.pilotChute.visible = true;
+                this.pilotBridle.visible = true;
+                this.dBag.visible = true;
+
+                this.pilotChute.scale.set(1, 0.6, 1);
+                const pcHeight = 6 + t * 3;
+                this.pilotChute.position.set(jx, jy + pcHeight, jz);
+
+                // D-bag pulled from container upward toward PC
+                const dbagT = Math.min(t * 1.5, 1);
+                const dbagHeight = 0.8 + dbagT * (pcHeight - 2);
+                this.dBag.position.set(jx, jy + dbagHeight, jz);
+                this.dBag.rotation.set(t * 0.3, 0, t * 0.2);
+
+                // Bridle from d-bag to pilot chute
+                const bPos = this.pilotBridle.geometry.attributes.position.array;
+                bPos[0] = jx; bPos[1] = jy + dbagHeight + 0.3; bPos[2] = jz;
+                bPos[3] = jx; bPos[4] = jy + pcHeight - 0.3; bPos[5] = jz;
+                this.pilotBridle.geometry.attributes.position.needsUpdate = true;
+
+                // Deployment risers: lines from harness to d-bag (lines still in d-bag)
+                this.deployRiserL.visible = true;
+                this.deployRiserR.visible = true;
+                const drL = this.deployRiserL.geometry.attributes.position.array;
+                drL[0] = jx - harnessSpread; drL[1] = harnessY; drL[2] = jz;
+                drL[3] = jx - harnessSpread * 0.15; drL[4] = jy + dbagHeight - 0.2; drL[5] = jz;
+                this.deployRiserL.geometry.attributes.position.needsUpdate = true;
+                const drR = this.deployRiserR.geometry.attributes.position.array;
+                drR[0] = jx + harnessSpread; drR[1] = harnessY; drR[2] = jz;
+                drR[3] = jx + harnessSpread * 0.15; drR[4] = jy + dbagHeight - 0.2; drR[5] = jz;
+                this.deployRiserR.geometry.attributes.position.needsUpdate = true;
+
+                this.canopyGroup.visible = false;
+                this.suspensionLines.forEach(l => l.visible = false);
+                if (this.riserLines) this.riserLines.forEach(r => r.visible = false);
+
+            } else if (deployT < p3End) {
+                // Phase 3: Canopy inflating — canopyGroup positioning handled by main flight code
+                // We only manage PC, d-bag, slider, and deployment objects here
+                const t = (deployT - p2End) / (p3End - p2End);
+                this.pilotChute.visible = true;
+                this.pilotBridle.visible = true;
+                this.dBag.visible = t < 0.4;
+                this.flightDBag.visible = t > 0.3;
+
+                // Lines appearing as canopy inflates (positioned by main flight code)
+                this.suspensionLines.forEach(l => {
+                    l.visible = t > 0.2;
+                    if (l.material) l.material.opacity = Math.min(t * 1.5, 1);
+                });
+                if (this.riserLines) this.riserLines.forEach(r => r.visible = t > 0.1);
+
+                // Deploy risers from harness — use canopyGroup's world position for target
+                this.deployRiserL.visible = true;
+                this.deployRiserR.visible = true;
+                const cgp = this.canopyGroup.position;
+                const drL = this.deployRiserL.geometry.attributes.position.array;
+                drL[0] = jx - harnessSpread; drL[1] = harnessY; drL[2] = jz;
+                drL[3] = cgp.x - harnessSpread * 0.3; drL[4] = cgp.y - 2; drL[5] = cgp.z;
+                this.deployRiserL.geometry.attributes.position.needsUpdate = true;
+                const drR = this.deployRiserR.geometry.attributes.position.array;
+                drR[0] = jx + harnessSpread; drR[1] = harnessY; drR[2] = jz;
+                drR[3] = cgp.x + harnessSpread * 0.3; drR[4] = cgp.y - 2; drR[5] = cgp.z;
+                this.deployRiserR.geometry.attributes.position.needsUpdate = true;
+
+                // Slider near canopy
+                this.slider.visible = t > 0.3;
+                if (this.slider.visible) {
+                    const sliderScale = 0.5 + (t - 0.3) / 0.7 * 0.5;
+                    this.slider.scale.set(sliderScale, 1, sliderScale);
+                    this.slider.position.set(cgp.x, cgp.y - 1.5, cgp.z);
+                    this.slider.rotation.x = Math.PI * 0.5;
+                }
+
+                // Pilot chute above canopy, collapsing
+                const pcCollapse = Math.max(0, (t - 0.5) * 2);
+                this.pilotChute.scale.set(1 - pcCollapse * 0.6, 0.6 * (1 - pcCollapse * 0.5), 1 - pcCollapse * 0.6);
+                this.pilotChute.position.set(cgp.x, cgp.y + 2 - pcCollapse, cgp.z);
+
+                // Bridle from canopy to pilot chute
+                const bPos = this.pilotBridle.geometry.attributes.position.array;
+                bPos[0] = cgp.x; bPos[1] = cgp.y + 0.5; bPos[2] = cgp.z;
+                bPos[3] = this.pilotChute.position.x; bPos[4] = this.pilotChute.position.y; bPos[5] = this.pilotChute.position.z;
+                this.pilotBridle.geometry.attributes.position.needsUpdate = true;
+
+                this.collapsedPilotChute.visible = false;
+                this.collapsedBridle.visible = false;
+                this.collapsedSlider.visible = false;
+
+                if (this.dBag.visible) {
+                    this.dBag.position.set(cgp.x, cgp.y + 0.8, cgp.z);
+                }
+
+            } else {
+                // Phase 4: Slider descends, PC collapses — canopyGroup positioned by flight code
+                const t = (deployT - p3End) / (deployDuration - p3End);
+
+                // Lines fully visible
+                this.suspensionLines.forEach(l => {
+                    l.visible = true;
+                    if (l.material) l.material.opacity = 1;
+                });
+                if (this.riserLines) this.riserLines.forEach(r => r.visible = true);
+
+                // Deployment risers fade out
+                const riserFade = Math.min(t * 2, 1);
+                this.deployRiserL.visible = riserFade < 0.8;
+                this.deployRiserR.visible = riserFade < 0.8;
+
+                // Slider descending from canopy to harness
+                const cgp = this.canopyGroup.position;
+                this.slider.visible = true;
+                const sliderDescent = Math.min(t * 2, 1);
+                const sliderY = cgp.y - 1.5 - sliderDescent * 5;
+                const sliderScale = 1 - sliderDescent * 0.7;
+                this.slider.scale.set(sliderScale, 1, sliderScale);
+                this.slider.position.set(cgp.x, sliderY, cgp.z);
+                this.slider.rotation.x = Math.PI * 0.5;
+
+                // Pilot chute collapses
+                const pcCollapse = Math.min(t * 2.5, 1);
+                this.pilotChute.visible = pcCollapse < 0.9;
+                this.pilotChute.scale.set(0.4 * (1 - pcCollapse), 0.3 * (1 - pcCollapse), 0.4 * (1 - pcCollapse));
+                this.pilotChute.position.set(cgp.x, cgp.y + 1.5, cgp.z);
+                this.pilotBridle.visible = pcCollapse < 0.9;
+                if (this.pilotBridle.visible) {
+                    const bPos = this.pilotBridle.geometry.attributes.position.array;
+                    bPos[0] = cgp.x; bPos[1] = cgp.y; bPos[2] = cgp.z;
+                    bPos[3] = this.pilotChute.position.x; bPos[4] = this.pilotChute.position.y; bPos[5] = this.pilotChute.position.z;
+                    this.pilotBridle.geometry.attributes.position.needsUpdate = true;
+                }
+
+                // Transition to collapsed elements on canopy
+                if (pcCollapse > 0.7) {
+                    this.collapsedPilotChute.visible = true;
+                    this.collapsedBridle.visible = true;
+                    this.flightDBag.visible = true;
+                }
+                if (sliderDescent > 0.8) {
+                    this.collapsedSlider.visible = true;
+                    this.slider.visible = false;
+                }
+
+                this.dBag.visible = false;
+            }
+
+        } else if (isCanopy) {
+            // Flight mode: hide active deployment objects, show persistent elements
+            this.pilotChute.visible = false;
+            this.pilotBridle.visible = false;
+            this.dBag.visible = false;
+            this.slider.visible = false;
+            this.deployRiserL.visible = false;
+            this.deployRiserR.visible = false;
+
+            // D-bag stays on top of canopy, bridle to collapsed pilot chute
+            this.flightDBag.visible = true;
+            this.collapsedPilotChute.visible = true;
+            this.collapsedBridle.visible = true;
+            this.collapsedSlider.visible = true;
+
+            // Collapsed pilot chute trails behind the trailing edge in the relative wind.
+            // In flight: PC is dragged behind TE by the airflow.
+            // During stall: canopy decelerates, relative wind drops, PC surges forward
+            // ahead of the canopy before falling with the collapsed fabric.
+            const flutterTime = (this.bodyAnim ? this.bodyAnim.windBuffet : 0) || performance.now() * 0.001;
+            const pcFlareT = state.flareTimer || 0;
+            const pcStallT = pcFlareT > 2.5 ? Math.min((pcFlareT - 2.5) / 1.5, 1) : 0;
+
+            let pcZ, pcY, pcX;
+            if (pcStallT > 0) {
+                // STALL: PC surges forward as canopy loses airspeed
+                // With no relative wind, the PC shoots past the nose (negative Z in canopy local)
+                // then falls down with gravity
+                const forwardSurge = pcStallT * 8;  // surges from TE (z=5.5) to ahead of nose
+                pcZ = 5.5 - forwardSurge;
+                pcY = -0.5 - pcStallT * 3;  // falls down
+                pcX = Math.sin(flutterTime * 2.5) * pcStallT * 0.5; // chaotic lateral
+            } else {
+                // Normal flight: trails behind TE with flutter from relative wind
+                pcZ = 5.5 + Math.sin(flutterTime * 2) * 0.5;
+                pcY = -0.5 + Math.sin(flutterTime * 3.5) * 0.3;
+                pcX = Math.sin(flutterTime * 1.7) * 0.2;
+            }
+            this.collapsedPilotChute.position.set(pcX, pcY, pcZ);
+            this.collapsedPilotChute.rotation.x = Math.sin(flutterTime * 3) * 0.4;
+            this.collapsedPilotChute.rotation.z = Math.cos(flutterTime * 2.3) * 0.3;
+
+            // Update bridle endpoint (3rd point) to follow fluttering/surging PC
+            const bPos = this.collapsedBridle.geometry.attributes.position.array;
+            // Point 0: d-bag (0, 1.0, 0.12) — stays fixed
+            // Point 1: TE exit (0, 0, 3.5) — stays fixed
+            // Point 2: collapsed PC — follows
+            bPos[6] = pcX;
+            bPos[7] = pcY;
+            bPos[8] = pcZ;
+            this.collapsedBridle.geometry.attributes.position.needsUpdate = true;
+
+        } else {
+            // Hide everything when not deploying or under canopy
+            this.pilotChute.visible = false;
+            this.pilotBridle.visible = false;
+            this.dBag.visible = false;
+            this.slider.visible = false;
+            this.flightDBag.visible = false;
+            this.collapsedPilotChute.visible = false;
+            this.collapsedBridle.visible = false;
+            this.collapsedSlider.visible = false;
+            this.deployRiserL.visible = false;
+            this.deployRiserR.visible = false;
         }
     }
 
@@ -5066,6 +5546,18 @@ class SceneManager {
                 targetLKnee = 0.2; targetRKnee = 0.2;
             }
 
+            // Subtle joint fluidity — anatomically correct micro-movements from wind
+            const ffJointTime = anim.windBuffet || 0;
+            const ffElbowMicro = Math.sin(ffJointTime * 1.8) * 0.04 * Math.min(speed / 50, 1);
+            const ffKneeMicro = Math.sin(ffJointTime * 1.1 + 0.8) * 0.03;
+            const ffWristDrift = Math.cos(ffJointTime * 2.5) * 0.02;
+
+            // Add wind-responsive joint flutter to targets
+            targetLForearm += ffElbowMicro + ffWristDrift;
+            targetRForearm += ffElbowMicro * 0.9 - ffWristDrift;
+            targetLKnee += ffKneeMicro;
+            targetRKnee += ffKneeMicro * 0.85;
+
             // Smooth lerp to targets + wind buffet
             anim.leftArmRot.z += (targetLArmZ - anim.leftArmRot.z) * lerpRate;
             anim.rightArmRot.z += (targetRArmZ - anim.rightArmRot.z) * lerpRate;
@@ -5089,9 +5581,10 @@ class SceneManager {
             const bankAngle = state.bankAngle || 0;
             const diveSpeed = state.diveSpeed || 0;
 
-            // Harness lean: body swings out in turns — sharp turn = 90°+ from vertical
-            // bankAngle ~0.5 = moderate turn, ~1.0+ = aggressive. Scale up dramatically.
-            const harnessLean = -bankAngle * 2.5;
+            // Harness lean: body stays mostly vertical — gravity dominates.
+            // The pendulum POSITION swings, but the body itself barely tilts.
+            // In reality a jumper's body lean is ~10-15° max even in aggressive turns.
+            const harnessLean = -bankAngle * 0.35;
 
             // Forward pitch: body swings forward when decelerating (braking), back when speeding up
             let bodyPitchCanopy = 0;
@@ -5118,50 +5611,102 @@ class SceneManager {
                 harnessLean + pendulumZ
             );
 
-            // Canopy arm positions — arms reach up to toggles, pull down with input
-            let targetLArmX = -0.4, targetRArmX = -0.4; // arms slightly forward reaching up
-            let targetLArmZ = -0.3, targetRArmZ = 0.3;   // arms out slightly
-            let targetLForearm = -0.8, targetRForearm = -0.8; // forearms up (reaching for toggles)
+            // === CANOPY ARM/LEG POSITIONS — realistic sport jumper ===
+            // Arms are directly tied to flight inputs:
+            //   Full flight (no input) = arms up at toggle attachment (hands at ear level)
+            //   Half brakes (input.down) = hands by chest
+            //   Full flare = hands down by waist/hips
+            //   Front riser = arms forward and up, grabbing risers overhead
+            //   Rear riser = arms slightly back at rear riser attachment
+            //   Left/right toggle = asymmetric — pulled side down, other up
 
-            if (input.left || input.down || input.flare) {
-                // Left toggle pull: left arm comes down
-                targetLArmX = 0.4;
-                targetLForearm = 0.6;
-            }
-            if (input.right || input.down || input.flare) {
-                // Right toggle pull
-                targetRArmX = 0.4;
-                targetRForearm = 0.6;
-            }
+            // Subtle joint fluidity — micro-movements from wind/turbulence at joints
+            const jointTime = (anim.windBuffet || 0);
+            const jointFlutter = buffet * 0.15; // wind-reactive
+            const elbowMicro = Math.sin(jointTime * 1.3) * 0.03 + jointFlutter;
+            const wristMicro = Math.sin(jointTime * 2.1 + 0.5) * 0.02;
+            const kneeMicro = Math.sin(jointTime * 0.9 + 1.2) * 0.02;
+
+            let targetLArmX, targetRArmX;   // shoulder pitch (negative=up, positive=down)
+            let targetLArmZ, targetRArmZ;   // shoulder spread
+            let targetLForearm, targetRForearm; // elbow bend
+
             if (input.flare) {
-                // Full flare — both arms buried to hips
-                targetLArmX = 0.7; targetRArmX = 0.7;
-                targetLForearm = 1.0; targetRForearm = 1.0;
+                // FULL FLARE — both hands buried down by waist/hips
+                targetLArmX = 0.9; targetRArmX = 0.9;
+                targetLForearm = 0.8; targetRForearm = 0.8;
+                targetLArmZ = -0.05; targetRArmZ = 0.05;
+            } else if (input.up) {
+                // FRONT RISERS — arms forward at shoulder level max, grabbing risers
+                // Hands no lower than shoulder height (~horizontal)
+                targetLArmX = -1.3; targetRArmX = -1.3;
+                targetLForearm = -0.3; targetRForearm = -0.3;
                 targetLArmZ = -0.1; targetRArmZ = 0.1;
-            }
-            if (input.up) {
-                // Speed bar: arms up high, legs extended to push bar
+            } else if (input.rearRiser) {
+                // REAR RISERS — arms up at shoulder level, reaching back to rear risers
+                targetLArmX = -1.2; targetRArmX = -1.2;
+                targetLForearm = -0.4; targetRForearm = -0.4;
+                targetLArmZ = -0.15; targetRArmZ = 0.15;
+            } else if (input.down) {
+                // HALF BRAKES — toggles pulled to shoulder/upper chest level
                 targetLArmX = -0.6; targetRArmX = -0.6;
-                targetLForearm = -1.0; targetRForearm = -1.0;
+                targetLForearm = 0.3; targetRForearm = 0.3;
+                targetLArmZ = -0.1; targetRArmZ = 0.1;
+            } else {
+                // FULL FLIGHT — arms raised, hands on toggles at ear/head level
+                // Arms clearly UP — reaching to toggle attachment above
+                targetLArmX = -1.5; targetRArmX = -1.5;
+                targetLForearm = -0.5; targetRForearm = -0.5;
+                targetLArmZ = -0.15; targetRArmZ = 0.15;
             }
 
-            // Legs: swing with turns and speed changes, not just static
-            // In a turn, outside leg swings slightly forward (weight shift)
-            const legSwingTurn = turnRate * 0.5; // legs swing hard in turns
-            const legSwingSpeed = bodyPitchCanopy * 0.5; // legs follow body pitch
-            let targetLLegX = 0.05 + legSwingSpeed - legSwingTurn + buffet * 0.3;
-            let targetRLegX = 0.05 + legSwingSpeed + legSwingTurn - buffet * 0.3;
-            // Knees slightly bent while hanging
-            let targetLKnee = 0.15 + Math.abs(legSwingTurn) * 0.3;
-            let targetRKnee = 0.15 + Math.abs(legSwingTurn) * 0.3;
-            // Legs splay slightly apart
-            let targetLLegZ = -0.08 - Math.abs(turnRate) * 0.2;
-            let targetRLegZ = 0.08 + Math.abs(turnRate) * 0.2;
+            // Asymmetric toggle inputs — one side pulled from full flight position
+            if (input.left && !input.flare && !input.down) {
+                const depth = input.leftDepth > 0 ? input.leftDepth : 1.0;
+                // From arms-up (-1.5) pull down to shoulder level (~-0.6) at full depth
+                targetLArmX = -1.5 + depth * 0.9;
+                targetLForearm = -0.5 + depth * 0.8;
+            }
+            if (input.right && !input.flare && !input.down) {
+                const depth = input.rightDepth > 0 ? input.rightDepth : 1.0;
+                targetRArmX = -1.5 + depth * 0.9;
+                targetRForearm = -0.5 + depth * 0.8;
+            }
+
+            // Add joint fluidity
+            targetLForearm += elbowMicro;
+            targetRForearm += elbowMicro * 0.8 + wristMicro;
+
+            // === LEGS — aggressive sport jumper in harness ===
+            // Knees bent up in front (like sitting in a chair), feet dangling
+            // Seated harness position — thighs lifted in front like sitting in a chair
+            const legSwingTurn = turnRate * 0.2;
+            const legSwingSpeed = bodyPitchCanopy * 0.15;
+
+            // Base: thighs forward (negative X = forward in Three.js) — seated ~65-70 degrees
+            let targetLLegX = -1.15 + legSwingSpeed - legSwingTurn + buffet * 0.06;
+            let targetRLegX = -1.15 + legSwingSpeed + legSwingTurn - buffet * 0.06;
+            // Knees bent — lower legs hang down from raised thighs
+            let targetLKnee = 1.1 + kneeMicro + Math.abs(legSwingTurn) * 0.1;
+            let targetRKnee = 1.1 + kneeMicro + Math.abs(legSwingTurn) * 0.1;
+            // Legs slightly apart
+            let targetLLegZ = -0.12 - Math.abs(turnRate) * 0.05;
+            let targetRLegZ = 0.12 + Math.abs(turnRate) * 0.05;
 
             if (input.up) {
-                // Speed bar: legs push forward together
-                targetLLegX = 0.4; targetRLegX = 0.4;
-                targetLKnee = 0.3; targetRKnee = 0.3;
+                // Front risers: legs push forward a bit more
+                targetLLegX = -1.3; targetRLegX = -1.3;
+                targetLKnee = 0.7; targetRKnee = 0.7;
+                targetLLegZ = -0.1; targetRLegZ = 0.1;
+            } else if (input.flare) {
+                // Flare: legs swing forward and straighten for landing
+                const ft = state.flareTimer || 0;
+                const flareLeg = Math.min(ft / 2.0, 1);
+                targetLLegX = -1.15 - flareLeg * 0.25;
+                targetRLegX = -1.15 - flareLeg * 0.25;
+                targetLKnee = 1.1 - flareLeg * 0.6; // straighten for landing
+                targetRKnee = 1.1 - flareLeg * 0.6;
+                targetLLegZ = -0.08; targetRLegZ = 0.08; // legs together for landing
             }
 
             anim.leftArmRot.z += (targetLArmZ - anim.leftArmRot.z) * lerpRate;
@@ -5177,8 +5722,29 @@ class SceneManager {
             anim.leftKneeRot += (targetLKnee - anim.leftKneeRot) * lerpRate;
             anim.rightKneeRot += (targetRKnee - anim.rightKneeRot) * lerpRate;
 
-            const showCanopy = state.phase === 'canopy' || state.deployTimer > 1.5;
+            // During deploying, keep skydiver at current physics position
+            if (state.phase === 'deploying') {
+                this.skydiver.position.set(state.position.x, state.position.y, state.position.z);
+            }
+
+            // Show canopy: during canopy phase always, during deploying after 40% (inflation start)
+            const deployT = state.deployTimer || 0;
+            const deployDuration = state.deployDuration || 3.0;
+            const deployFrac = deployT / deployDuration;
+            const showCanopy = state.phase === 'canopy' || (state.phase === 'deploying' && deployFrac > 0.4);
+
             this.canopyGroup.visible = showCanopy;
+
+            // During deployment inflation, scale canopy up from 0 to 1
+            if (state.phase === 'deploying' && showCanopy) {
+                const inflateT = (deployFrac - 0.4) / 0.6; // 0→1 over last 60% of deploy
+                const scaleX = 0.1 + inflateT * 0.9;
+                const scaleY = 0.2 + inflateT * 0.8;
+                const scaleZ = 0.3 + inflateT * 0.7;
+                this.canopyGroup.scale.set(scaleX, scaleY, scaleZ);
+            } else if (state.phase === 'canopy') {
+                this.canopyGroup.scale.set(1, 1, 1);
+            }
 
             if (showCanopy) {
                 // Canopy flare animation: pop up then tilt back
@@ -5205,22 +5771,23 @@ class SceneManager {
                         canopyYOffset += 2.5 - t * 1.0;    // slowly descending
                         canopyZOffset -= 0.8 + t * 0.2;
                     } else {
-                        // Stall: nose drops hard, canopy surges forward and collapses
+                        // Stall: canopy collapses DIRECTLY ABOVE the jumper
+                        // In a real stall the fabric drops straight down onto the pilot
                         const t = Math.min(ft - 2.5, 2.0);
-                        canopyPitch = 0.25 - t * 0.45;     // nose drops aggressively below level
-                        canopyYOffset += 1.5 - t * 2.0;    // canopy sinks rapidly toward/past pilot
-                        canopyZOffset -= 1.0 - t * 1.5;    // canopy surges forward
+                        canopyPitch = 0.25 - t * 0.4;      // nose drops somewhat
+                        canopyYOffset += 1.5 - t * 1.8;    // canopy sinks toward jumper (stays above)
+                        canopyZOffset *= (1 - t * 0.4);     // reduce forward offset — stays overhead
                     }
                 } else if (input.down || input.rearRiser) {
-                    // Brakes: visible nose-up pitch — trailing edge pulled, AoA increases
+                    // Brakes / rear risers: trailing edge pulls down, nose pitches UP, AoA increases
                     const brakeDepth = input.rearRiser ? 0.5 : 1.0;
-                    canopyPitch = 0.18 * brakeDepth;      // ~10° nose-up — clearly visible
-                    canopyYOffset += 0.4 * brakeDepth;    // canopy lifts slightly
+                    canopyPitch = 0.30 * brakeDepth;      // visible nose-up — TE pulled hard
+                    canopyYOffset += 0.5 * brakeDepth;    // canopy rises slightly (more lift from AoA)
                 } else if (input.up) {
-                    // Front risers: nose dives, canopy drops below jumper
-                    canopyPitch = -0.15;                   // ~9° nose-down — aggressive dive
-                    canopyYOffset -= 0.8;                  // canopy descends relative to jumper
-                    canopyZOffset += 0.3;                  // pulls slightly forward
+                    // Front risers: NOSE DIVES, TAIL RISES — aggressive speed run
+                    canopyPitch = -0.30;                   // ~17° nose-down — very visible dive
+                    canopyYOffset -= 1.2;                  // canopy drops below, diving
+                    canopyZOffset += 0.5;                  // surges forward
                 }
 
                 let canopyRoll = state.bankAngle || 0;
@@ -5257,6 +5824,44 @@ class SceneManager {
                         state.position.z + Math.cos(state.heading) * canopyZOffset
                     );
                     this.canopyGroup.rotation.set(-canopyPitch, state.heading + Math.PI, canopyRoll);
+                }
+
+                // ---- STALL: group-level transforms for realistic collapse ----
+                // Instead of deforming individual vertices (creates spiky mess),
+                // scale/rotate the whole canopyGroup to look like crumpled fabric
+                const stallFlareT = state.flareTimer || 0;
+                const stallGroupT = stallFlareT > 2.5 ? Math.min((stallFlareT - 2.5) / 1.5, 1) : 0;
+                if (stallGroupT > 0) {
+                    // Canopy shrinks as it loses pressurization — fabric crumples into a wad
+                    // Span (X) narrows as tips fold in, chord (Z) shortens, height (Y) flattens
+                    const scX = 1 - stallGroupT * 0.7;  // span narrows to 30%
+                    const scY = 1 - stallGroupT * 0.85;  // flattens to 15% (deflated)
+                    const scZ = 1 - stallGroupT * 0.6;  // chord shrinks to 40%
+                    this.canopyGroup.scale.set(scX, scY, scZ);
+                    // Add slight random wobble to make it look like limp fabric
+                    const wobbleT = performance.now() * 0.001;
+                    const wobbleX = stallGroupT * 0.08 * Math.sin(wobbleT * 3.2);
+                    const wobbleZ = stallGroupT * 0.06 * Math.sin(wobbleT * 2.7 + 1.5);
+                    this.canopyGroup.rotation.x += wobbleX;
+                    this.canopyGroup.rotation.z += wobbleZ;
+                    // Fade the mesh opacity for limp/transparent fabric look
+                    if (this.canopyTopMesh && this.canopyTopMesh.material) {
+                        this.canopyTopMesh.material.opacity = Math.max(0.3, 1 - stallGroupT * 0.5);
+                    }
+                    if (this.canopyBottomMesh && this.canopyBottomMesh.material) {
+                        this.canopyBottomMesh.material.opacity = Math.max(0.3, 1 - stallGroupT * 0.5);
+                    }
+                } else {
+                    // Normal flight — full scale, full opacity
+                    if (state.phase === 'canopy') {
+                        this.canopyGroup.scale.set(1, 1, 1);
+                        if (this.canopyTopMesh && this.canopyTopMesh.material) {
+                            this.canopyTopMesh.material.opacity = this.canopyTopMesh.material._baseOpacity || 1;
+                        }
+                        if (this.canopyBottomMesh && this.canopyBottomMesh.material) {
+                            this.canopyBottomMesh.material.opacity = this.canopyBottomMesh.material._baseOpacity || 1;
+                        }
+                    }
                 }
 
                 // Update suspension lines — compute canopy attach in world space
@@ -5688,80 +6293,10 @@ class UIController {
             this.el.ctrlLeft.innerHTML = '&#x2190;<br><span style="font-size:8px">LEFT</span>';
             this.el.ctrlRight.innerHTML = '&#x2192;<br><span style="font-size:8px">RIGHT</span>';
             this.el.ctrlFlare.innerHTML = 'P<br><span style="font-size:8px">PULL</span>';
-            // Show stability HUD
-            const posNames = { arch: 'ARCH', belly: 'BELLY', track: 'TRACK', dearch: 'DE-ARCH' };
-            const posLabel = posNames[state.bodyPosition || 'belly'] || 'BELLY';
-            const score = Math.round(state.stabilityScore || 0);
-            const streak = state.stabilityStreak || 0;
-            const bestStreak = state.bestStreak || 0;
-
-            if (!document.getElementById('stability-hud')) {
-                const hud = document.createElement('div');
-                hud.id = 'stability-hud';
-                hud.style.cssText = 'position:fixed;top:62px;left:50%;transform:translateX(-50%);text-align:center;z-index:100;pointer-events:none;';
-                hud.innerHTML = `
-                    <div id="stab-pos" style="background:rgba(0,0,0,0.75);color:#fbbf24;padding:4px 14px;border-radius:4px;font:bold 13px sans-serif;border:2px solid rgba(251,191,36,0.4);display:inline-block;transition:border-color 0.3s,box-shadow 0.3s;"></div>
-                    <div style="margin-top:4px;">
-                        <div id="stab-bar-bg" style="width:160px;height:6px;background:rgba(255,255,255,0.15);border-radius:3px;margin:0 auto;overflow:hidden;">
-                            <div id="stab-bar" style="height:100%;width:0%;border-radius:3px;transition:width 0.15s,background 0.15s;"></div>
-                        </div>
-                        <div id="stab-streak" style="color:rgba(255,255,255,0.5);font:10px sans-serif;margin-top:2px;"></div>
-                    </div>`;
-                document.body.appendChild(hud);
-            }
-
-            const hudEl = document.getElementById('stability-hud');
-            hudEl.style.display = 'block';
-            const posEl = document.getElementById('stab-pos');
-            const barEl = document.getElementById('stab-bar');
-            const streakEl = document.getElementById('stab-streak');
-
-            // Color based on score
-            let scoreColor, borderGlow;
-            if (score >= 90) {
-                scoreColor = '#22c55e'; // green — nailed it
-                borderGlow = '0 0 12px rgba(34,197,94,0.6)';
-            } else if (score >= 70) {
-                scoreColor = '#fbbf24'; // yellow — maintaining
-                borderGlow = '0 0 6px rgba(251,191,36,0.3)';
-            } else if (score >= 40) {
-                scoreColor = '#f97316'; // orange — struggling
-                borderGlow = 'none';
-            } else {
-                scoreColor = '#ef4444'; // red — out of control
-                borderGlow = 'none';
-            }
-
-            posEl.textContent = `${posLabel}  ${score}%`;
-            posEl.style.color = scoreColor;
-            posEl.style.borderColor = scoreColor;
-            posEl.style.boxShadow = borderGlow;
-            barEl.style.width = `${score}%`;
-            barEl.style.background = scoreColor;
-
-            // Streak display
-            if (streak >= 1) {
-                const streakSec = Math.floor(streak);
-                streakEl.textContent = `${streakSec}s streak${bestStreak > 3 ? ` (best: ${Math.floor(bestStreak)}s)` : ''}`;
-                streakEl.style.color = score >= 90 ? '#22c55e' : 'rgba(255,255,255,0.6)';
-            } else {
-                streakEl.textContent = bestStreak > 3 ? `best: ${Math.floor(bestStreak)}s` : 'hold position!';
-                streakEl.style.color = 'rgba(255,255,255,0.4)';
-            }
-
-            // Milestone chime audio feedback
-            const milestones = [3, 5, 10, 15, 20, 30];
-            for (let i = milestones.length - 1; i >= 0; i--) {
-                if (streak >= milestones[i] && state.lastStreakMilestone < milestones[i]) {
-                    state.lastStreakMilestone = milestones[i];
-                    if (soundSystem && soundSystem.started) soundSystem.playStabilityChime(i);
-                    break;
-                }
-            }
-        } else {
-            const hudEl = document.getElementById('stability-hud');
-            if (hudEl) hudEl.style.display = 'none';
         }
+        // Hide any old stability HUD if present
+        const oldStabHud = document.getElementById('stability-hud');
+        if (oldStabHud) oldStabHud.style.display = 'none';
         if (showCanopyUI) {
             this.el.ctrlUp.innerHTML = '&#x2191;<br><span style="font-size:8px">SPD</span>';
             this.el.ctrlDown.innerHTML = '&#x2193;<br><span style="font-size:8px">½ BRK</span>';
@@ -5832,40 +6367,56 @@ class UIController {
         const canvas = this.el.headingCanvas;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const w = 200, h = 22;
-        canvas.width = w; canvas.height = h;
+        const w = 220, h = 34;
+        // Only set canvas dimensions once to avoid flicker
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
         ctx.clearRect(0, 0, w, h);
 
-        // 180° arc centered on current heading
-        const degsPerPixel = 180 / w;
+        // Tape occupies top portion, heading readout at bottom
+        const tapeH = 18; // tape area height
+        const readoutY = 21; // where heading number starts
+
+        // Smooth heading with sub-pixel precision — continuous scroll, no snapping
+        const pixelsPerDeg = w / 180;
         const cardinals = ['N','NE','E','SE','S','SW','W','NW'];
         const cardinalDegs = [0, 45, 90, 135, 180, 225, 270, 315];
 
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.imageSmoothingEnabled = true;
 
-        for (let offset = -90; offset <= 90; offset += 5) {
-            let deg = ((headingDeg + offset) % 360 + 360) % 360;
-            const x = w / 2 + offset / degsPerPixel;
-            if (x < 0 || x > w) continue;
+        // Draw every degree marker in the visible 180° window using continuous positioning
+        for (let i = 0; i < 360; i++) {
+            let diff = i - headingDeg;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            if (diff < -90 || diff > 90) continue;
 
-            const isCardinal = cardinalDegs.includes(Math.round(deg));
-            const isMajor = deg % 10 === 0;
+            const x = w / 2 + diff * pixelsPerDeg;
+
+            const cardIdx = cardinalDegs.indexOf(i);
+            const isCardinal = cardIdx >= 0;
+            const isMajor = i % 10 === 0;
 
             if (isCardinal) {
                 ctx.fillStyle = '#ef4444';
-                ctx.fillRect(x - 0.5, 0, 1, 8);
-                ctx.font = 'bold 8px monospace';
-                ctx.fillText(cardinals[cardinalDegs.indexOf(Math.round(deg))], x, 18);
+                ctx.fillRect(Math.round(x) - 0.5, 0, 1, 10);
+                ctx.font = 'bold 10px sans-serif';
+                ctx.fillText(cardinals[cardIdx], Math.round(x), 11);
             } else if (isMajor) {
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.fillRect(x - 0.5, 2, 1, 5);
-            } else {
+                ctx.fillRect(Math.round(x) - 0.5, 2, 1, 6);
+                ctx.font = '8px sans-serif';
+                ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                ctx.fillText(i + '°', Math.round(x), 11);
+            } else if (i % 5 === 0) {
                 ctx.fillStyle = 'rgba(255,255,255,0.15)';
-                ctx.fillRect(x - 0.5, 3, 1, 3);
+                ctx.fillRect(Math.round(x) - 0.5, 3, 1, 4);
             }
         }
 
-        // Center caret
+        // Center caret — fixed triangle pointing down at the tape
         ctx.fillStyle = '#10b981';
         ctx.beginPath();
         ctx.moveTo(w/2 - 4, 0);
@@ -5873,6 +6424,12 @@ class UIController {
         ctx.lineTo(w/2, 5);
         ctx.closePath();
         ctx.fill();
+
+        // Current heading readout — large and clear below the tape
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#10b981';
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.round(headingDeg) + '°', w/2, readoutY);
     }
 
     updateInput(input) {
@@ -6009,29 +6566,6 @@ class UIController {
         }
         this.el.scoreApproach.textContent = approach;
 
-        // Add freefall stability results
-        let stabEl = document.getElementById('score-stability');
-        if (!stabEl) {
-            stabEl = document.createElement('div');
-            stabEl.id = 'score-stability';
-            stabEl.style.cssText = 'margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.15);font-size:11px;color:rgba(255,255,255,0.7);';
-            this.el.landingScore.querySelector('.score-details, div:last-child')?.after(stabEl)
-                || this.el.landingScore.appendChild(stabEl);
-        }
-        const bestStrk = Math.floor(state.bestStreak || 0);
-        const totalStab = Math.round(state.stabilityAccum || 0);
-        if (bestStrk > 0) {
-            let grade = '';
-            if (bestStrk >= 30) grade = '⭐ Master';
-            else if (bestStrk >= 20) grade = 'Expert';
-            else if (bestStrk >= 10) grade = 'Skilled';
-            else if (bestStrk >= 5) grade = 'Intermediate';
-            else grade = 'Novice';
-            stabEl.innerHTML = `Freefall: Best streak ${bestStrk}s &middot; Score ${totalStab} &middot; ${grade}`;
-        } else {
-            stabEl.innerHTML = 'Freefall: No stability streaks (try A/T/D keys + arrows to hold position)';
-        }
-
         this.el.landingScore.style.display = 'block';
     }
 
@@ -6147,7 +6681,8 @@ function initSimulator(dzInfo) {
 function updateWindDisplays(phase, altM, windObj, jumperHeading) {
     const panel = document.getElementById('winds-aloft-panel');
     const indicator = document.getElementById('wind-indicator');
-    const showPanel = !isRunning; // winds aloft only pre-flight
+    // Show winds aloft data during ALL phases (pre-flight + freefall + canopy)
+    const showPanel = !isRunning || phase === 'freefall' || phase === 'canopy' || phase === 'deploying' || phase === 'aircraft';
     const showIndicator = phase === 'aircraft' || phase === 'freefall' || phase === 'canopy';
 
     // On mobile, visibility is controlled by .preflight class in CSS; on desktop use inline style
@@ -6305,12 +6840,20 @@ function gameLoop(timestamp) {
 
         physics.update(dt, wind, input, deployAltM, canopyPerf);
         try {
-            sceneManager.updateScene(physics, wind, input, dt);
+            sceneManager.updateScene({...physics, deployDuration: canopyPerf.deployDuration}, wind, input, dt);
             sceneManager.updateCanopyFabric(dt, wind, physics);
+            sceneManager.updateDeploymentAnimation(dt, {
+                ...physics, deployDuration: canopyPerf.deployDuration
+            });
         } catch(sceneErr) {
             if (!window._sceneErrShown) { window._sceneErrShown = true; console.error('SCENE ERROR:', sceneErr); }
         }
-        sceneManager.updateLandingPredictor(physics, windSystem, input, canopyPerf);
+        if (window.showLandingProjection) {
+            sceneManager.updateLandingPredictor(physics, windSystem, input, canopyPerf);
+        } else if (sceneManager.predictorGroup) {
+            sceneManager.predictorGroup.visible = false;
+            sceneManager.predictorTrail.visible = false;
+        }
         sceneManager.updateWindParticles(dt, windSystem, physics.position);
         // Sound: pass input state for toggle/flare detection
         physics._inputLeft = input.left;
@@ -6368,7 +6911,7 @@ function gameLoop(timestamp) {
             ui.showLandingScore(physics, canopyPerf);
             sceneManager.orbitControls.target.set(physics.position.x, 0, physics.position.z);
             isRunning = false;
-            if (!window.isMobileDevice) document.getElementById('winds-aloft-panel').style.display = 'none';
+            // Hide wind indicator on landing (winds aloft panel stays via updateWindDisplays)
             document.getElementById('wind-indicator').style.display = 'none';
         }
     } else {
@@ -7025,6 +7568,8 @@ function setupTouchControls() {
         const flipBtnEl2 = document.getElementById('camera-flip-btn');
         if (pullBtnEl) pullBtnEl.style.display = isFreefall ? 'flex' : 'none';
         if (flipBtnEl2) flipBtnEl2.style.display = (physics && physics.phase === 'canopy') ? 'flex' : 'none';
+        const lpBtnEl = document.getElementById('landing-proj-btn');
+        if (lpBtnEl) lpBtnEl.style.display = (physics && physics.phase === 'canopy') ? 'flex' : 'none';
         // Show freefall circles during freefall, canopy depth bars during canopy
         const ffCircleL = document.getElementById('ff-circle-left');
         const ffCircleR = document.getElementById('ff-circle-right');
@@ -7086,6 +7631,13 @@ function setupUIControls() {
         document.getElementById('canopy-opacity-val').textContent = `${val}%`;
         if (sceneManager) sceneManager.setCanopyOpacity(val);
     });
+    // Landing projection toggle
+    const lpToggle = document.getElementById('landing-proj-toggle');
+    if (lpToggle) {
+        lpToggle.addEventListener('change', () => {
+            window.showLandingProjection = lpToggle.checked;
+        });
+    }
 }
 
 function onCanopyModelChange() {
@@ -7198,6 +7750,11 @@ window.startJump = function() {
     if (mBtn) mBtn.style.display = 'none';
     const mHint = document.getElementById('mobile-exit-hint');
     if (mHint) mHint.style.display = 'none';
+    // Auto-collapse desktop panels during flight
+    const windPanel = document.getElementById('wind-panel');
+    const jumpPanel = document.getElementById('jump-panel');
+    if (windPanel && !window.isMobileDevice) windPanel.classList.add('panel-collapsed');
+    if (jumpPanel && !window.isMobileDevice) jumpPanel.classList.add('panel-collapsed');
     // Close mobile settings if open
     if (window._mobileSettingsOpen) toggleMobileSettings();
     } catch(err) { console.error('Start jump error:', err); document.title = 'ERR: ' + err.message; }
@@ -7221,11 +7778,24 @@ window.resetSim = function() {
     sceneManager.aircraft.visible = false;
     sceneManager._exitViewSet = false; // re-snap exit view camera on next frame
     sceneManager.camera.position.set(0, exitAlt * CONFIG.FT_TO_M + 20, -50);
+    // Expand desktop panels on reset
+    const windPanel = document.getElementById('wind-panel');
+    const jumpPanel = document.getElementById('jump-panel');
+    if (windPanel) windPanel.classList.remove('panel-collapsed');
+    if (jumpPanel) jumpPanel.classList.remove('panel-collapsed');
     // Show mobile start button and exit hint again
     const mBtn = document.getElementById('mobile-start-btn');
     if (mBtn && window.isMobileDevice) mBtn.style.display = 'block';
     const mHint = document.getElementById('mobile-exit-hint');
     if (mHint && window.isMobileDevice) mHint.style.display = 'block';
+    // Silence all sound on return to menu
+    if (soundSystem && soundSystem.started && soundSystem.ctx) {
+        const t = soundSystem.ctx.currentTime;
+        if (soundSystem.ffGain) soundSystem.ffGain.gain.setTargetAtTime(0, t, 0.05);
+        if (soundSystem.ffRumbleGain) soundSystem.ffRumbleGain.gain.setTargetAtTime(0, t, 0.05);
+        if (soundSystem.cpGain) soundSystem.cpGain.gain.setTargetAtTime(0, t, 0.05);
+        if (soundSystem.flutterGain) soundSystem.flutterGain.gain.setTargetAtTime(0, t, 0.05);
+    }
 };
 
 window.toggleSound = function() {
