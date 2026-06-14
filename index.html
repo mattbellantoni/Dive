@@ -173,9 +173,10 @@
 
         /* Version badge */
         #version-badge {
-            position: fixed; bottom: 4px; left: 6px;
-            color: rgba(255,255,255,0.25); font-size: 9px; z-index: 10;
+            position: fixed; bottom: 6px; left: 8px;
+            color: rgba(255,255,255,0.45); font-size: 9px; z-index: 200;
             pointer-events: none; font-family: monospace;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
 
         /* Loading overlay for satellite tiles */
@@ -435,10 +436,17 @@
         <div class="unit">ratio</div>
     </div>
     <div class="hud-item">
-        <div class="label">Heading</div>
-        <div class="value" id="hud-heading">0</div>
-        <div class="unit">deg</div>
+        <div class="label">Descent</div>
+        <div class="value" id="hud-descent">0</div>
+        <div class="unit">fpm</div>
     </div>
+</div>
+<!-- Old heading HUD item removed — replaced by heading tape below -->
+<!-- Heading tape HUD — 180° arc display -->
+<div id="heading-tape" style="position:fixed;top:38px;left:50%;transform:translateX(-50%);
+    width:280px;height:24px;overflow:hidden;z-index:100;display:none;
+    background:rgba(0,0,0,0.5);border-radius:4px;border:1px solid rgba(255,255,255,0.15);">
+    <canvas id="heading-tape-canvas" width="280" height="24" style="display:block;"></canvas>
 </div>
 <div id="phase-indicator" class="phase-aircraft">AIRCRAFT</div>
 <div id="camera-mode" style="position:fixed;top:40px;right:10px;background:rgba(0,0,0,0.7);color:#60a5fa;padding:3px 10px;border-radius:4px;font:bold 11px sans-serif;z-index:100;border:1px solid rgba(96,165,250,0.3);display:none;">FPV</div>
@@ -752,8 +760,8 @@ const CANOPY_DB = {
         name: 'Icarus SFire', type: 'Elliptical 9-cell', cells: 9,
         baseFwdSpeed: 12.0, baseDescentRate: 4.3, baseGlideRatio: 2.79,
         toggleTurnRate: 1.1, flarePower: 0.35, flareSpeedBoost: 0.25,
-        riserBoost: 1.25, deployDuration: 3.0,
-        wlSpeedFactor: 0.15, wlDescentFactor: 0.12, wlTurnFactor: 0.08,
+        riserBoost: 1.25, rearRiserFactor: 0.88, deployDuration: 3.0,
+        wlSpeedFactor: 0.05, wlDescentFactor: 0.04, wlTurnFactor: 0.03,
         sizes: [99,109,119,129,139,149,169,189,209,229],
         color: 0x2288ff
     },
@@ -761,26 +769,26 @@ const CANOPY_DB = {
         name: 'Aerodyne Pilot', type: 'Semi-elliptical 9-cell', cells: 9,
         baseFwdSpeed: 11.2, baseDescentRate: 4.1, baseGlideRatio: 2.73,
         toggleTurnRate: 1.0, flarePower: 0.40, flareSpeedBoost: 0.28,
-        riserBoost: 1.20, deployDuration: 3.5,
-        wlSpeedFactor: 0.14, wlDescentFactor: 0.11, wlTurnFactor: 0.07,
+        riserBoost: 1.20, rearRiserFactor: 0.90, deployDuration: 3.5,
+        wlSpeedFactor: 0.04, wlDescentFactor: 0.03, wlTurnFactor: 0.02,
         sizes: [107,117,127,140,150,168,188,210,230],
         color: 0xff4422
     },
     safire3: {
         name: 'Icarus Safire 3', type: 'Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 11.5, baseDescentRate: 4.2, baseGlideRatio: 2.74,
+        baseFwdSpeed: 11.3, baseDescentRate: 4.2, baseGlideRatio: 2.69,
         toggleTurnRate: 1.0, flarePower: 0.40, flareSpeedBoost: 0.27,
-        riserBoost: 1.22, deployDuration: 3.0,
-        wlSpeedFactor: 0.14, wlDescentFactor: 0.12, wlTurnFactor: 0.07,
+        riserBoost: 1.22, rearRiserFactor: 0.88, deployDuration: 3.0,
+        wlSpeedFactor: 0.05, wlDescentFactor: 0.04, wlTurnFactor: 0.03,
         sizes: [99,109,119,129,139,149,169,189,209,229],
         color: 0x22cc44
     },
     sabre3: {
         name: 'PD Sabre 3', type: 'Tapered 9-cell', cells: 9,
-        baseFwdSpeed: 13.0, baseDescentRate: 4.6, baseGlideRatio: 2.83,
+        baseFwdSpeed: 12.8, baseDescentRate: 4.6, baseGlideRatio: 2.78,
         toggleTurnRate: 1.3, flarePower: 0.32, flareSpeedBoost: 0.22,
-        riserBoost: 1.28, deployDuration: 2.5,
-        wlSpeedFactor: 0.18, wlDescentFactor: 0.15, wlTurnFactor: 0.10,
+        riserBoost: 1.28, rearRiserFactor: 0.87, deployDuration: 2.5,
+        wlSpeedFactor: 0.06, wlDescentFactor: 0.05, wlTurnFactor: 0.04,
         sizes: [97,107,120,135,150,170,190,210],
         color: 0xffaa00
     },
@@ -788,17 +796,17 @@ const CANOPY_DB = {
         name: 'PD Spectre', type: 'Semi-elliptical 9-cell', cells: 9,
         baseFwdSpeed: 10.5, baseDescentRate: 3.9, baseGlideRatio: 2.69,
         toggleTurnRate: 0.9, flarePower: 0.42, flareSpeedBoost: 0.30,
-        riserBoost: 1.18, deployDuration: 3.5,
-        wlSpeedFactor: 0.12, wlDescentFactor: 0.10, wlTurnFactor: 0.06,
+        riserBoost: 1.18, rearRiserFactor: 0.90, deployDuration: 3.5,
+        wlSpeedFactor: 0.04, wlDescentFactor: 0.03, wlTurnFactor: 0.02,
         sizes: [120,135,150,170,190,210,230],
         color: 0xcc44ff
     },
     navigator: {
         name: 'PD Navigator', type: 'Rectangular 9-cell', cells: 9,
-        baseFwdSpeed: 9.8, baseDescentRate: 3.6, baseGlideRatio: 2.72,
+        baseFwdSpeed: 10.0, baseDescentRate: 3.6, baseGlideRatio: 2.78,
         toggleTurnRate: 0.8, flarePower: 0.45, flareSpeedBoost: 0.32,
-        riserBoost: 1.12, deployDuration: 4.0,
-        wlSpeedFactor: 0.10, wlDescentFactor: 0.08, wlTurnFactor: 0.05,
+        riserBoost: 1.12, rearRiserFactor: 0.92, deployDuration: 4.0,
+        wlSpeedFactor: 0.03, wlDescentFactor: 0.02, wlTurnFactor: 0.02,
         sizes: [200,220,240,260,280,300],
         color: 0x44aaff
     },
@@ -806,44 +814,44 @@ const CANOPY_DB = {
         name: 'Student Navigator', type: 'Rectangular 9-cell', cells: 9,
         baseFwdSpeed: 9.5, baseDescentRate: 3.5, baseGlideRatio: 2.71,
         toggleTurnRate: 0.7, flarePower: 0.48, flareSpeedBoost: 0.34,
-        riserBoost: 1.08, deployDuration: 4.5,
-        wlSpeedFactor: 0.08, wlDescentFactor: 0.07, wlTurnFactor: 0.04,
+        riserBoost: 1.08, rearRiserFactor: 0.93, deployDuration: 4.5,
+        wlSpeedFactor: 0.02, wlDescentFactor: 0.02, wlTurnFactor: 0.01,
         sizes: [260,280,300],
         color: 0x44aaff, isStudent: true
     },
     crossfire: {
         name: 'Icarus Crossfire', type: 'Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 13.5, baseDescentRate: 5.0, baseGlideRatio: 2.7,
+        baseFwdSpeed: 13.2, baseDescentRate: 5.0, baseGlideRatio: 2.64,
         toggleTurnRate: 1.5, flarePower: 0.28, flareSpeedBoost: 0.20,
-        riserBoost: 1.32, deployDuration: 2.5,
-        wlSpeedFactor: 0.20, wlDescentFactor: 0.18, wlTurnFactor: 0.12,
+        riserBoost: 1.32, rearRiserFactor: 0.86, deployDuration: 2.5,
+        wlSpeedFactor: 0.07, wlDescentFactor: 0.06, wlTurnFactor: 0.04,
         sizes: [99,109,119,129,139,149,159,169],
         color: 0xff6600
     },
     crossfire3: {
         name: 'Icarus Crossfire 3', type: 'Highly Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 14.5, baseDescentRate: 5.2, baseGlideRatio: 2.79,
+        baseFwdSpeed: 14.0, baseDescentRate: 5.2, baseGlideRatio: 2.69,
         toggleTurnRate: 1.6, flarePower: 0.26, flareSpeedBoost: 0.18,
-        riserBoost: 1.38, deployDuration: 2.0,
-        wlSpeedFactor: 0.22, wlDescentFactor: 0.20, wlTurnFactor: 0.14,
+        riserBoost: 1.38, rearRiserFactor: 0.85, deployDuration: 2.0,
+        wlSpeedFactor: 0.08, wlDescentFactor: 0.07, wlTurnFactor: 0.05,
         sizes: [89,99,109,119,129,139,149],
         color: 0xee2200
     },
     xfire: {
         name: 'Icarus XFire', type: 'Cross-braced 9-cell', cells: 9,
-        baseFwdSpeed: 15.5, baseDescentRate: 5.5, baseGlideRatio: 2.82,
+        baseFwdSpeed: 14.8, baseDescentRate: 5.5, baseGlideRatio: 2.69,
         toggleTurnRate: 1.8, flarePower: 0.22, flareSpeedBoost: 0.16,
-        riserBoost: 1.42, deployDuration: 1.8,
-        wlSpeedFactor: 0.25, wlDescentFactor: 0.22, wlTurnFactor: 0.16,
+        riserBoost: 1.42, rearRiserFactor: 0.84, deployDuration: 1.8,
+        wlSpeedFactor: 0.09, wlDescentFactor: 0.08, wlTurnFactor: 0.06,
         sizes: [84,94,104,114,124],
         color: 0xcc0000
     },
     valkyrie: {
         name: 'PD Valkyrie', type: 'Cross-braced 9-cell', cells: 9,
-        baseFwdSpeed: 17.0, baseDescentRate: 5.8, baseGlideRatio: 2.93,
+        baseFwdSpeed: 16.0, baseDescentRate: 5.8, baseGlideRatio: 2.76,
         toggleTurnRate: 2.2, flarePower: 0.18, flareSpeedBoost: 0.12,
-        riserBoost: 1.48, deployDuration: 1.5,
-        wlSpeedFactor: 0.30, wlDescentFactor: 0.28, wlTurnFactor: 0.20,
+        riserBoost: 1.48, rearRiserFactor: 0.82, deployDuration: 1.5,
+        wlSpeedFactor: 0.10, wlDescentFactor: 0.09, wlTurnFactor: 0.07,
         sizes: [67,71,75,79,84,87,90,96,103],
         color: 0x0044dd
     },
@@ -851,8 +859,8 @@ const CANOPY_DB = {
         name: 'JYRO Leia', type: 'Elliptical 9-cell', cells: 9,
         baseFwdSpeed: 12.8, baseDescentRate: 4.8, baseGlideRatio: 2.67,
         toggleTurnRate: 1.4, flarePower: 0.30, flareSpeedBoost: 0.22,
-        riserBoost: 1.30, deployDuration: 2.5,
-        wlSpeedFactor: 0.19, wlDescentFactor: 0.16, wlTurnFactor: 0.11,
+        riserBoost: 1.30, rearRiserFactor: 0.86, deployDuration: 2.5,
+        wlSpeedFactor: 0.06, wlDescentFactor: 0.05, wlTurnFactor: 0.04,
         sizes: [96,106,116,126,136,146,156],
         color: 0xaa22ff
     },
@@ -1521,6 +1529,7 @@ function getCanopyPerformance() {
         flarePower: Math.max(0.10, canopy.flarePower * (1.2 - sqrtScale * 0.2)),  // heavier = weaker flare
         flareSpeedBoost: canopy.flareSpeedBoost,
         riserBoost: canopy.riserBoost || 1.15,
+        rearRiserFactor: canopy.rearRiserFactor || 0.88,
         deployDuration: canopy.deployDuration
     };
 }
@@ -2540,11 +2549,14 @@ class PhysicsEngine {
         const baseDesc = canopyPerf.descentRate;
         const baseGlide = baseFwd / baseDesc;
 
-        // Per-canopy riser boost: HP canopies gain much more from front risers
-        // Student ~8%, Intermediate ~20-25%, HP ~35-48% speed increase on fronts
+        // Per-canopy riser performance:
+        // Front risers: HP canopies gain much more speed (Student ~8%, HP ~48%)
+        // Rear risers: slight slow-down but flatter glide — accuracy mode
         const riserBoost = canopyPerf.riserBoost || 1.15;
+        const rearRiserFactor = canopyPerf.rearRiserFactor || 0.88;
         let speedRatio = 1.0;
         if (input.up) speedRatio = riserBoost;
+        else if (input.rearRiser) speedRatio = rearRiserFactor;
         if (input.down) speedRatio = 0.75;
 
         if (input.flare) {
@@ -3190,12 +3202,12 @@ class SceneManager {
             const geo = new THREE.RingGeometry(i === 0 ? sizes[i] - 3 : 0, sizes[i], 64);
             const mat = new THREE.MeshBasicMaterial({
                 color: colors[i], side: THREE.DoubleSide,
-                depthTest: true, depthWrite: false  // prevent z-fight with ground
+                depthTest: false, depthWrite: false, transparent: true, opacity: 0.9
             });
             const ring = new THREE.Mesh(geo, mat);
             ring.rotation.x = -Math.PI / 2;
-            ring.position.y = 0.5 + i * 0.1;
-            ring.renderOrder = 5;
+            ring.position.y = 1.0 + i * 0.15;
+            ring.renderOrder = 10 + i;
             this.scene.add(ring);
         }
 
@@ -5580,7 +5592,9 @@ class UIController {
             airspeed: document.getElementById('hud-airspeed'),
             gspeed: document.getElementById('hud-gspeed'),
             glide: document.getElementById('hud-glide'),
-            heading: document.getElementById('hud-heading'),
+            descent: document.getElementById('hud-descent'),
+            heading: document.getElementById('heading-tape'),
+            headingCanvas: document.getElementById('heading-tape-canvas'),
             phase: document.getElementById('phase-indicator'),
             canopyControls: document.getElementById('canopy-controls'),
             compassContainer: document.getElementById('compass-container'),
@@ -5613,14 +5627,15 @@ class UIController {
         this.el.alt.textContent = altFt.toLocaleString();
         this.el.airspeed.textContent = airspeedMph;
         this.el.gspeed.textContent = groundSpeedMph;
+        this.el.descent.textContent = vspeedFpm.toLocaleString();
         // Glide ratio: horizontal airspeed / vertical speed
         const horizAir = state.getHorizontalAirspeed(wind);
         const vertSpd = Math.abs(state.velocity.y);
         this.el.glide.textContent = vertSpd > 0.5 ? (horizAir / vertSpd).toFixed(1) : '—';
-        // Heading in degrees (compass bearing with +180 offset for world-to-geo)
+        // Heading tape — 180° arc centered on current heading
         const rawHeading = state.phase === 'freefall' ? (state.ffYaw || 0) : (state.heading || 0);
         const headingDeg = ((-rawHeading * 180 / Math.PI + 180) % 360 + 360) % 360;
-        this.el.heading.textContent = Math.round(headingDeg) + '°';
+        this.drawHeadingTape(headingDeg, state.phase !== 'aircraft' && state.phase !== 'landed');
 
         const phaseNames = { aircraft:'AIRCRAFT', freefall:'FREEFALL', deploying:'DEPLOYING', canopy:'CANOPY', landed:'LANDED' };
         this.el.phase.textContent = phaseNames[state.phase];
@@ -5783,6 +5798,66 @@ class UIController {
             const fsPanel = document.getElementById('flight-stats-panel');
             if (fsPanel) fsPanel.style.display = 'none';
         }
+    }
+
+    drawHeadingTape(headingDeg, visible) {
+        const tapeEl = this.el.heading;
+        if (!tapeEl) return;
+        tapeEl.style.display = visible ? 'block' : 'none';
+        if (!visible) return;
+
+        const canvas = this.el.headingCanvas;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = 280, h = 24;
+        ctx.clearRect(0, 0, w, h);
+
+        // Draw 180° of heading tape centered on current heading
+        const degsPerPixel = 180 / w; // 180° spans full width
+        const cardinals = ['N','NE','E','SE','S','SW','W','NW'];
+        const cardinalDegs = [0, 45, 90, 135, 180, 225, 270, 315];
+
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+
+        // Draw tick marks and labels across the 180° window
+        for (let offset = -90; offset <= 90; offset += 5) {
+            let deg = ((headingDeg + offset) % 360 + 360) % 360;
+            const x = w / 2 + offset / degsPerPixel;
+            if (x < 0 || x > w) continue;
+
+            const isMajor = deg % 10 === 0;
+            const isCardinal = cardinalDegs.includes(Math.round(deg));
+
+            if (isCardinal) {
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(x - 0.5, 0, 1, 10);
+                ctx.fillText(cardinals[cardinalDegs.indexOf(Math.round(deg))], x, 20);
+            } else if (isMajor) {
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.fillRect(x - 0.5, 2, 1, 7);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '8px monospace';
+                ctx.fillText(Math.round(deg) + '°', x, 19);
+                ctx.font = '9px monospace';
+            } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.fillRect(x - 0.5, 4, 1, 4);
+            }
+        }
+
+        // Center marker (current heading indicator)
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.moveTo(w/2 - 4, 0);
+        ctx.lineTo(w/2 + 4, 0);
+        ctx.lineTo(w/2, 5);
+        ctx.closePath();
+        ctx.fill();
+        // Current heading number
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText(Math.round(headingDeg) + '°', w/2, 22);
     }
 
     updateInput(input) {
@@ -6023,7 +6098,7 @@ class UIController {
 // ==================== MAIN APPLICATION ====================
 let sceneManager, physics, windSystem, ui, soundSystem;
 let lastTime = 0, isRunning = false, simInitialized = false;
-let input = { left: false, right: false, up: false, down: false, flare: false, deploy: false, ffPosition: 'belly', leftDepth: 0, rightDepth: 0 };
+let input = { left: false, right: false, up: false, down: false, rearRiser: false, flare: false, deploy: false, ffPosition: 'belly', leftDepth: 0, rightDepth: 0 };
 let fpvMode = false; // first-person camera toggle
 
 function initSimulator(dzInfo) {
@@ -6356,6 +6431,7 @@ function setupInputHandlers() {
             case 'ArrowDown':  input.down = true; e.preventDefault(); break;
             case ' ':          input.flare = true; e.preventDefault(); break;
             case 'p': case 'P': input.deploy = true; break;
+            case 'r': case 'R': input.rearRiser = true; break;
             case 'a': case 'A': input.ffPosition = 'arch'; break;
             case 't': case 'T': input.ffPosition = 'track'; break;
             case 'd': case 'D': input.ffPosition = 'dearch'; break;
@@ -6377,6 +6453,7 @@ function setupInputHandlers() {
             case 'ArrowUp':    input.up = false; break;
             case 'ArrowDown':  input.down = false; break;
             case ' ':          input.flare = false; break;
+            case 'r': case 'R': input.rearRiser = false; break;
             case 'a': case 'A': if (input.ffPosition === 'arch') input.ffPosition = 'belly'; break;
             case 't': case 'T': if (input.ffPosition === 'track') input.ffPosition = 'belly'; break;
             case 'd': case 'D': if (input.ffPosition === 'dearch') input.ffPosition = 'belly'; break;
@@ -6552,12 +6629,33 @@ function setupTouchControls() {
         <div id="touch-left" style="position:absolute;left:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
         <div id="touch-center" style="position:absolute;left:30%;top:0;width:40%;height:100%;pointer-events:auto;"></div>
         <div id="touch-right" style="position:absolute;right:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
-        <!-- Mobile front riser (speed) button — appears under canopy -->
-        <div id="touch-speed-btn" style="position:absolute;top:70px;left:50%;transform:translateX(-50%);
-            width:72px;height:44px;border-radius:22px;border:2px solid rgba(59,130,246,0.6);
-            background:rgba(59,130,246,0.15);pointer-events:auto;display:none;
-            font-size:12px;color:#93c5fd;font-family:monospace;text-align:center;line-height:20px;
-            padding-top:2px;touch-action:none;user-select:none;">&#x2191; SPD<br><span style="font-size:8px;color:#60a5fa;">RISERS</span></div>
+        <!-- Riser bars: 4 inner bars (2 per side) next to toggle bars -->
+        <!-- Left side: front riser (upper) + rear riser (lower) -->
+        <div id="riser-front-left" style="position:absolute;left:92px;bottom:180px;width:24px;height:100px;
+            background:linear-gradient(to bottom,rgba(59,130,246,0.25),rgba(59,130,246,0.05));
+            border-radius:12px;border:1px solid rgba(59,130,246,0.4);pointer-events:auto;display:none;
+            touch-action:none;user-select:none;">
+            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
+                font-size:7px;color:rgba(147,197,253,0.9);font-family:monospace;white-space:nowrap;">FRT</span></div>
+        <div id="riser-rear-left" style="position:absolute;left:92px;bottom:80px;width:24px;height:100px;
+            background:linear-gradient(to bottom,rgba(249,115,22,0.05),rgba(249,115,22,0.25));
+            border-radius:12px;border:1px solid rgba(249,115,22,0.4);pointer-events:auto;display:none;
+            touch-action:none;user-select:none;">
+            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
+                font-size:7px;color:rgba(251,191,36,0.9);font-family:monospace;white-space:nowrap;">RER</span></div>
+        <!-- Right side: front riser (upper) + rear riser (lower) -->
+        <div id="riser-front-right" style="position:absolute;right:92px;bottom:180px;width:24px;height:100px;
+            background:linear-gradient(to bottom,rgba(59,130,246,0.25),rgba(59,130,246,0.05));
+            border-radius:12px;border:1px solid rgba(59,130,246,0.4);pointer-events:auto;display:none;
+            touch-action:none;user-select:none;">
+            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
+                font-size:7px;color:rgba(147,197,253,0.9);font-family:monospace;white-space:nowrap;">FRT</span></div>
+        <div id="riser-rear-right" style="position:absolute;right:92px;bottom:80px;width:24px;height:100px;
+            background:linear-gradient(to bottom,rgba(249,115,22,0.05),rgba(249,115,22,0.25));
+            border-radius:12px;border:1px solid rgba(249,115,22,0.4);pointer-events:auto;display:none;
+            touch-action:none;user-select:none;">
+            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
+                font-size:7px;color:rgba(251,191,36,0.9);font-family:monospace;white-space:nowrap;">RER</span></div>
         <!-- Canopy toggle depth bars (moved inward to clear iPhone camera area) -->
         <div id="touch-depth-left" style="position:absolute;left:48px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
@@ -6761,25 +6859,36 @@ function setupTouchControls() {
         handleSideTouch('right', null);
     });
 
-    // Front riser (speed) button — hold to activate, release to deactivate
-    const speedBtn = document.getElementById('touch-speed-btn');
-    if (speedBtn) {
-        speedBtn.addEventListener('touchstart', (e) => {
-            input.up = true;
-            speedBtn.style.background = 'rgba(59,130,246,0.45)';
-            speedBtn.style.borderColor = 'rgba(59,130,246,1)';
+    // Riser bars — hold to activate front or rear risers
+    const riserBars = [
+        { id: 'riser-front-left', input: 'up', color: '59,130,246' },
+        { id: 'riser-front-right', input: 'up', color: '59,130,246' },
+        { id: 'riser-rear-left', input: 'rearRiser', color: '249,115,22' },
+        { id: 'riser-rear-right', input: 'rearRiser', color: '249,115,22' },
+    ];
+    const activeRiserTouches = { up: 0, rearRiser: 0 };
+    for (const bar of riserBars) {
+        const el = document.getElementById(bar.id);
+        if (!el) continue;
+        el.addEventListener('touchstart', (e) => {
+            activeRiserTouches[bar.input]++;
+            input[bar.input] = true;
+            el.style.background = `rgba(${bar.color},0.45)`;
+            el.style.borderColor = `rgba(${bar.color},1)`;
             e.preventDefault(); e.stopPropagation();
         }, { passive: false });
-        speedBtn.addEventListener('touchend', (e) => {
-            input.up = false;
-            speedBtn.style.background = 'rgba(59,130,246,0.15)';
-            speedBtn.style.borderColor = 'rgba(59,130,246,0.6)';
+        el.addEventListener('touchend', (e) => {
+            activeRiserTouches[bar.input] = Math.max(0, activeRiserTouches[bar.input] - 1);
+            if (activeRiserTouches[bar.input] === 0) input[bar.input] = false;
+            el.style.background = '';
+            el.style.borderColor = '';
             e.preventDefault(); e.stopPropagation();
         }, { passive: false });
-        speedBtn.addEventListener('touchcancel', () => {
-            input.up = false;
-            speedBtn.style.background = 'rgba(59,130,246,0.15)';
-            speedBtn.style.borderColor = 'rgba(59,130,246,0.6)';
+        el.addEventListener('touchcancel', () => {
+            activeRiserTouches[bar.input] = Math.max(0, activeRiserTouches[bar.input] - 1);
+            if (activeRiserTouches[bar.input] === 0) input[bar.input] = false;
+            el.style.background = '';
+            el.style.borderColor = '';
         });
     }
 
@@ -6910,8 +7019,10 @@ function setupTouchControls() {
         if (ffCircleR) ffCircleR.style.display = isFreefall ? 'block' : 'none';
         if (depthL) depthL.style.display = isCanopy ? 'block' : 'none';
         if (depthR) depthR.style.display = isCanopy ? 'block' : 'none';
-        const spdBtn = document.getElementById('touch-speed-btn');
-        if (spdBtn) spdBtn.style.display = isCanopy ? 'block' : 'none';
+        ['riser-front-left','riser-front-right','riser-rear-left','riser-rear-right'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = isCanopy ? 'block' : 'none';
+        });
         // Hide body HUD when not in freefall
         if (!isFreefall) {
             const hudEl = document.getElementById('ff-body-hud');
