@@ -338,9 +338,9 @@
             /* Right box: Winds Aloft — hidden by default on mobile, shown only preflight */
             #winds-aloft-panel {
                 display: none !important; position: fixed !important;
-                right: 4px !important; bottom: 4px !important; left: auto !important; top: auto !important;
+                right: 4px !important; bottom: 70px !important; left: auto !important; top: auto !important;
                 width: 28vw; max-width: 130px; font-size: 8px; padding: 5px 6px;
-                pointer-events: none;
+                pointer-events: auto; touch-action: none; cursor: grab;
             }
             #winds-aloft-panel.preflight {
                 display: block !important;
@@ -523,6 +523,7 @@
             <option value="crossfire">Icarus Crossfire</option>
             <option value="crossfire3">Icarus Crossfire 3</option>
             <option value="xfire">Icarus XFire</option>
+            <option value="valkyrie">PD Valkyrie</option>
             <option value="leia">JYRO Leia</option>
             <option value="custom">Custom</option>
         </select>
@@ -728,7 +729,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.66 &middot; Jun 12, 2026 &middot; 12:45 PM EST</div>
+<div id="version-badge">v1.68 &middot; Jun 14, 2026 &middot; 12:07 AM EST</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -836,6 +837,15 @@ const CANOPY_DB = {
         wlSpeedFactor: 0.25, wlDescentFactor: 0.22, wlTurnFactor: 0.16,
         sizes: [84,94,104,114,124],
         color: 0xcc0000
+    },
+    valkyrie: {
+        name: 'PD Valkyrie', type: 'Cross-braced 9-cell', cells: 9,
+        baseFwdSpeed: 15.8, baseDescentRate: 5.8, baseGlideRatio: 2.72,
+        toggleTurnRate: 2.2, flarePower: 0.18, flareSpeedBoost: 0.12,
+        deployDuration: 1.5,
+        wlSpeedFactor: 0.30, wlDescentFactor: 0.28, wlTurnFactor: 0.20,
+        sizes: [67,71,75,79,84,87,90,96,103],
+        color: 0x0044dd
     },
     leia: {
         name: 'JYRO Leia', type: 'Elliptical 9-cell', cells: 9,
@@ -1184,7 +1194,40 @@ setTimeout(() => {
     if (!panel) return;
     panel.style.cursor = 'pointer';
     panel.addEventListener('click', () => panel.classList.toggle('panel-collapsed'));
-    panel.addEventListener('touchend', (e) => { panel.classList.toggle('panel-collapsed'); e.preventDefault(); });
+    // winds-aloft-panel: draggable on mobile, tap to collapse
+    if (id === 'winds-aloft-panel' && window.isMobileDevice) {
+        let waDragStart = null, waDidDrag = false;
+        panel.addEventListener('touchstart', (e) => {
+            const t = e.touches[0];
+            waDragStart = { x: t.clientX, y: t.clientY, left: panel.offsetLeft, top: panel.offsetTop };
+            waDidDrag = false;
+            // Switch to left/top positioning for drag
+            panel.style.right = 'auto';
+            panel.style.left = waDragStart.left + 'px';
+            panel.style.top = waDragStart.top + 'px';
+            panel.style.bottom = 'auto';
+            e.stopPropagation();
+        }, { passive: true });
+        panel.addEventListener('touchmove', (e) => {
+            if (!waDragStart) return;
+            const t = e.touches[0];
+            const dx = t.clientX - waDragStart.x;
+            const dy = t.clientY - waDragStart.y;
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) waDidDrag = true;
+            if (waDidDrag) {
+                panel.style.left = Math.max(0, Math.min(window.innerWidth - 60, waDragStart.left + dx)) + 'px';
+                panel.style.top = Math.max(0, Math.min(window.innerHeight - 40, waDragStart.top + dy)) + 'px';
+                e.preventDefault();
+            }
+        }, { passive: false });
+        panel.addEventListener('touchend', (e) => {
+            if (!waDidDrag) panel.classList.toggle('panel-collapsed');
+            waDragStart = null;
+            e.preventDefault();
+        });
+    } else {
+        panel.addEventListener('touchend', (e) => { panel.classList.toggle('panel-collapsed'); e.preventDefault(); });
+    }
 });
 
 // ==================== GEAR COLOR CUSTOMIZER ====================
