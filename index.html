@@ -729,7 +729,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.68 &middot; Jun 14, 2026 &middot; 12:07 AM EST</div>
+<div id="version-badge">v1.69 &middot; Jun 14, 2026 &middot; 12:17 AM EST</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -750,9 +750,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const CANOPY_DB = {
     sfire: {
         name: 'Icarus SFire', type: 'Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 11.6, baseDescentRate: 4.3, baseGlideRatio: 2.7,
+        baseFwdSpeed: 12.0, baseDescentRate: 4.3, baseGlideRatio: 2.79,
         toggleTurnRate: 1.1, flarePower: 0.35, flareSpeedBoost: 0.25,
-        deployDuration: 3.0,
+        riserBoost: 1.25, deployDuration: 3.0,
         wlSpeedFactor: 0.15, wlDescentFactor: 0.12, wlTurnFactor: 0.08,
         sizes: [99,109,119,129,139,149,169,189,209,229],
         color: 0x2288ff
@@ -761,25 +761,25 @@ const CANOPY_DB = {
         name: 'Aerodyne Pilot', type: 'Semi-elliptical 9-cell', cells: 9,
         baseFwdSpeed: 11.2, baseDescentRate: 4.1, baseGlideRatio: 2.73,
         toggleTurnRate: 1.0, flarePower: 0.40, flareSpeedBoost: 0.28,
-        deployDuration: 3.5,
+        riserBoost: 1.20, deployDuration: 3.5,
         wlSpeedFactor: 0.14, wlDescentFactor: 0.11, wlTurnFactor: 0.07,
         sizes: [107,117,127,140,150,168,188,210,230],
         color: 0xff4422
     },
     safire3: {
         name: 'Icarus Safire 3', type: 'Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 11.0, baseDescentRate: 4.2, baseGlideRatio: 2.62,
+        baseFwdSpeed: 11.5, baseDescentRate: 4.2, baseGlideRatio: 2.74,
         toggleTurnRate: 1.0, flarePower: 0.40, flareSpeedBoost: 0.27,
-        deployDuration: 3.0,
+        riserBoost: 1.22, deployDuration: 3.0,
         wlSpeedFactor: 0.14, wlDescentFactor: 0.12, wlTurnFactor: 0.07,
         sizes: [99,109,119,129,139,149,169,189,209,229],
         color: 0x22cc44
     },
     sabre3: {
         name: 'PD Sabre 3', type: 'Tapered 9-cell', cells: 9,
-        baseFwdSpeed: 12.5, baseDescentRate: 4.6, baseGlideRatio: 2.72,
+        baseFwdSpeed: 13.0, baseDescentRate: 4.6, baseGlideRatio: 2.83,
         toggleTurnRate: 1.3, flarePower: 0.32, flareSpeedBoost: 0.22,
-        deployDuration: 2.5,
+        riserBoost: 1.28, deployDuration: 2.5,
         wlSpeedFactor: 0.18, wlDescentFactor: 0.15, wlTurnFactor: 0.10,
         sizes: [97,107,120,135,150,170,190,210],
         color: 0xffaa00
@@ -788,7 +788,7 @@ const CANOPY_DB = {
         name: 'PD Spectre', type: 'Semi-elliptical 9-cell', cells: 9,
         baseFwdSpeed: 10.5, baseDescentRate: 3.9, baseGlideRatio: 2.69,
         toggleTurnRate: 0.9, flarePower: 0.42, flareSpeedBoost: 0.30,
-        deployDuration: 3.5,
+        riserBoost: 1.18, deployDuration: 3.5,
         wlSpeedFactor: 0.12, wlDescentFactor: 0.10, wlTurnFactor: 0.06,
         sizes: [120,135,150,170,190,210,230],
         color: 0xcc44ff
@@ -797,7 +797,7 @@ const CANOPY_DB = {
         name: 'PD Navigator', type: 'Rectangular 9-cell', cells: 9,
         baseFwdSpeed: 9.8, baseDescentRate: 3.6, baseGlideRatio: 2.72,
         toggleTurnRate: 0.8, flarePower: 0.45, flareSpeedBoost: 0.32,
-        deployDuration: 4.0,
+        riserBoost: 1.12, deployDuration: 4.0,
         wlSpeedFactor: 0.10, wlDescentFactor: 0.08, wlTurnFactor: 0.05,
         sizes: [200,220,240,260,280,300],
         color: 0x44aaff
@@ -806,43 +806,43 @@ const CANOPY_DB = {
         name: 'Student Navigator', type: 'Rectangular 9-cell', cells: 9,
         baseFwdSpeed: 9.5, baseDescentRate: 3.5, baseGlideRatio: 2.71,
         toggleTurnRate: 0.7, flarePower: 0.48, flareSpeedBoost: 0.34,
-        deployDuration: 4.5,
+        riserBoost: 1.08, deployDuration: 4.5,
         wlSpeedFactor: 0.08, wlDescentFactor: 0.07, wlTurnFactor: 0.04,
         sizes: [260,280,300],
         color: 0x44aaff, isStudent: true
     },
     crossfire: {
         name: 'Icarus Crossfire', type: 'Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 13.0, baseDescentRate: 5.0, baseGlideRatio: 2.6,
+        baseFwdSpeed: 13.5, baseDescentRate: 5.0, baseGlideRatio: 2.7,
         toggleTurnRate: 1.5, flarePower: 0.28, flareSpeedBoost: 0.20,
-        deployDuration: 2.5,
+        riserBoost: 1.32, deployDuration: 2.5,
         wlSpeedFactor: 0.20, wlDescentFactor: 0.18, wlTurnFactor: 0.12,
         sizes: [99,109,119,129,139,149,159,169],
         color: 0xff6600
     },
     crossfire3: {
         name: 'Icarus Crossfire 3', type: 'Highly Elliptical 9-cell', cells: 9,
-        baseFwdSpeed: 13.8, baseDescentRate: 5.2, baseGlideRatio: 2.65,
+        baseFwdSpeed: 14.5, baseDescentRate: 5.2, baseGlideRatio: 2.79,
         toggleTurnRate: 1.6, flarePower: 0.26, flareSpeedBoost: 0.18,
-        deployDuration: 2.0,
+        riserBoost: 1.38, deployDuration: 2.0,
         wlSpeedFactor: 0.22, wlDescentFactor: 0.20, wlTurnFactor: 0.14,
         sizes: [89,99,109,119,129,139,149],
         color: 0xee2200
     },
     xfire: {
         name: 'Icarus XFire', type: 'Cross-braced 9-cell', cells: 9,
-        baseFwdSpeed: 14.5, baseDescentRate: 5.5, baseGlideRatio: 2.64,
+        baseFwdSpeed: 15.5, baseDescentRate: 5.5, baseGlideRatio: 2.82,
         toggleTurnRate: 1.8, flarePower: 0.22, flareSpeedBoost: 0.16,
-        deployDuration: 1.8,
+        riserBoost: 1.42, deployDuration: 1.8,
         wlSpeedFactor: 0.25, wlDescentFactor: 0.22, wlTurnFactor: 0.16,
         sizes: [84,94,104,114,124],
         color: 0xcc0000
     },
     valkyrie: {
         name: 'PD Valkyrie', type: 'Cross-braced 9-cell', cells: 9,
-        baseFwdSpeed: 15.8, baseDescentRate: 5.8, baseGlideRatio: 2.72,
+        baseFwdSpeed: 17.0, baseDescentRate: 5.8, baseGlideRatio: 2.93,
         toggleTurnRate: 2.2, flarePower: 0.18, flareSpeedBoost: 0.12,
-        deployDuration: 1.5,
+        riserBoost: 1.48, deployDuration: 1.5,
         wlSpeedFactor: 0.30, wlDescentFactor: 0.28, wlTurnFactor: 0.20,
         sizes: [67,71,75,79,84,87,90,96,103],
         color: 0x0044dd
@@ -851,7 +851,7 @@ const CANOPY_DB = {
         name: 'JYRO Leia', type: 'Elliptical 9-cell', cells: 9,
         baseFwdSpeed: 12.8, baseDescentRate: 4.8, baseGlideRatio: 2.67,
         toggleTurnRate: 1.4, flarePower: 0.30, flareSpeedBoost: 0.22,
-        deployDuration: 2.5,
+        riserBoost: 1.30, deployDuration: 2.5,
         wlSpeedFactor: 0.19, wlDescentFactor: 0.16, wlTurnFactor: 0.11,
         sizes: [96,106,116,126,136,146,156],
         color: 0xaa22ff
@@ -1496,17 +1496,18 @@ function getCanopyPerformance() {
     const exitWt = bodyWt + gearWt;
     const wingLoading = exitWt / sizeSqFt;
 
-    // Aerodynamically correct: speed scales with sqrt(wingLoading)
-    // At WL 1.0 = base values. At WL 1.5 = sqrt(1.5) ≈ 1.22 = +22% speed.
-    // At WL 2.0 = sqrt(2.0) ≈ 1.41 = +41%. Realistic and bounded.
-    // Each canopy's wlFactor modulates how sensitive it is (sport canopies more responsive)
+    // Aerodynamic speed scaling: base sqrt(WL) + per-canopy sensitivity factor.
+    // HP canopies respond more aggressively to wing loading (flatter trim, thinner airfoil).
+    // The wlSpeedFactor adds extra speed beyond sqrt at high WL where HP canopies excel.
     const wlRatio = Math.max(0.3, wingLoading); // floor at 0.3 to prevent weird behavior
     const sqrtScale = Math.sqrt(wlRatio); // 1.0 at WL=1.0, 1.22 at 1.5, 1.41 at 2.0
 
-    // Speed and descent scale with sqrt. Turn rate scales slightly less (logarithmic feel).
-    const speedMult = sqrtScale;
-    const descentMult = sqrtScale * (1 + (wlRatio - 1.0) * 0.15); // descent increases a bit faster
-    const turnMult = 1 + (sqrtScale - 1) * 0.7; // turns get faster but not as dramatically
+    // Per-canopy WL sensitivity: HP canopies gain more speed per WL increase.
+    // Extra scaling kicks in above WL 1.0 — below that, just sqrt applies.
+    const wlExcess = Math.max(0, wlRatio - 1.0);
+    const speedMult = sqrtScale * (1 + canopy.wlSpeedFactor * wlExcess);
+    const descentMult = sqrtScale * (1 + canopy.wlDescentFactor * wlExcess * 1.3);
+    const turnMult = 1 + (sqrtScale - 1) * (0.7 + canopy.wlTurnFactor);
 
     return {
         canopy, modelKey, sizeSqFt,
@@ -1519,6 +1520,7 @@ function getCanopyPerformance() {
         glideRatio: 0,  // calculated below
         flarePower: Math.max(0.10, canopy.flarePower * (1.2 - sqrtScale * 0.2)),  // heavier = weaker flare
         flareSpeedBoost: canopy.flareSpeedBoost,
+        riserBoost: canopy.riserBoost || 1.15,
         deployDuration: canopy.deployDuration
     };
 }
@@ -2538,8 +2540,11 @@ class PhysicsEngine {
         const baseDesc = canopyPerf.descentRate;
         const baseGlide = baseFwd / baseDesc;
 
+        // Per-canopy riser boost: HP canopies gain much more from front risers
+        // Student ~8%, Intermediate ~20-25%, HP ~35-48% speed increase on fronts
+        const riserBoost = canopyPerf.riserBoost || 1.15;
         let speedRatio = 1.0;
-        if (input.up) speedRatio = 1.15;
+        if (input.up) speedRatio = riserBoost;
         if (input.down) speedRatio = 0.75;
 
         if (input.flare) {
@@ -2553,17 +2558,26 @@ class PhysicsEngine {
         const fwdSpeed = baseFwd * speedRatio + this.diveSpeed;
 
         // ============ SPEED POLAR (descent from speed) ============
+        // Realistic: front risers dramatically increase descent rate.
+        // At trim (1.0) glide is near peak. Above trim, glide drops steeply
+        // because you're pushing the nose down and trading altitude for speed.
+        // HP canopies at full front risers can go from 2.7:1 glide to 1.2:1
         const effectiveSpeedRatio = fwdSpeed / baseFwd;
         let glideAtSpeed;
         if (effectiveSpeedRatio >= 0.7) {
+            // Quadratic penalty above best-glide speed (0.82)
+            // Steeper penalty above 1.15 to model aggressive front riser descent
             const deviation = effectiveSpeedRatio - 0.82;
-            glideAtSpeed = baseGlide * (1.05 - deviation * deviation * 1.2);
+            const steepFactor = effectiveSpeedRatio > 1.15 ? 2.0 : 1.2;
+            glideAtSpeed = baseGlide * (1.05 - deviation * deviation * steepFactor);
         } else if (effectiveSpeedRatio >= 0.35) {
             const t = (effectiveSpeedRatio - 0.35) / 0.35;
             glideAtSpeed = baseGlide * (0.3 + t * 0.6);
         } else {
             glideAtSpeed = baseGlide * 0.25;
         }
+        // Floor glide ratio at 0.8:1 (no canopy can have infinite descent)
+        glideAtSpeed = Math.max(glideAtSpeed, 0.8);
 
         let descRate = fwdSpeed / Math.max(glideAtSpeed, 0.5);
 
@@ -6538,6 +6552,12 @@ function setupTouchControls() {
         <div id="touch-left" style="position:absolute;left:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
         <div id="touch-center" style="position:absolute;left:30%;top:0;width:40%;height:100%;pointer-events:auto;"></div>
         <div id="touch-right" style="position:absolute;right:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
+        <!-- Mobile front riser (speed) button — appears under canopy -->
+        <div id="touch-speed-btn" style="position:absolute;top:70px;left:50%;transform:translateX(-50%);
+            width:72px;height:44px;border-radius:22px;border:2px solid rgba(59,130,246,0.6);
+            background:rgba(59,130,246,0.15);pointer-events:auto;display:none;
+            font-size:12px;color:#93c5fd;font-family:monospace;text-align:center;line-height:20px;
+            padding-top:2px;touch-action:none;user-select:none;">&#x2191; SPD<br><span style="font-size:8px;color:#60a5fa;">RISERS</span></div>
         <!-- Canopy toggle depth bars (moved inward to clear iPhone camera area) -->
         <div id="touch-depth-left" style="position:absolute;left:48px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
@@ -6741,6 +6761,28 @@ function setupTouchControls() {
         handleSideTouch('right', null);
     });
 
+    // Front riser (speed) button — hold to activate, release to deactivate
+    const speedBtn = document.getElementById('touch-speed-btn');
+    if (speedBtn) {
+        speedBtn.addEventListener('touchstart', (e) => {
+            input.up = true;
+            speedBtn.style.background = 'rgba(59,130,246,0.45)';
+            speedBtn.style.borderColor = 'rgba(59,130,246,1)';
+            e.preventDefault(); e.stopPropagation();
+        }, { passive: false });
+        speedBtn.addEventListener('touchend', (e) => {
+            input.up = false;
+            speedBtn.style.background = 'rgba(59,130,246,0.15)';
+            speedBtn.style.borderColor = 'rgba(59,130,246,0.6)';
+            e.preventDefault(); e.stopPropagation();
+        }, { passive: false });
+        speedBtn.addEventListener('touchcancel', () => {
+            input.up = false;
+            speedBtn.style.background = 'rgba(59,130,246,0.15)';
+            speedBtn.style.borderColor = 'rgba(59,130,246,0.6)';
+        });
+    }
+
     // Deploy button
     // Pull button (standalone, not in touch overlay)
     const pullBtn = document.getElementById('pull-btn');
@@ -6868,6 +6910,8 @@ function setupTouchControls() {
         if (ffCircleR) ffCircleR.style.display = isFreefall ? 'block' : 'none';
         if (depthL) depthL.style.display = isCanopy ? 'block' : 'none';
         if (depthR) depthR.style.display = isCanopy ? 'block' : 'none';
+        const spdBtn = document.getElementById('touch-speed-btn');
+        if (spdBtn) spdBtn.style.display = isCanopy ? 'block' : 'none';
         // Hide body HUD when not in freefall
         if (!isFreefall) {
             const hudEl = document.getElementById('ff-body-hud');
