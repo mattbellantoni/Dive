@@ -575,7 +575,7 @@
     </div>
     <div class="control-group">
         <label><span>Exit Offset</span><span class="val" id="exit-offset-val">Auto (upwind)</span></label>
-        <input type="range" id="exit-offset" min="0" max="2000" step="50" value="0">
+        <input type="range" id="exit-offset" min="0" max="10000" step="50" value="0">
     </div>
     <div class="control-group">
         <label><span>Jump Run Dir</span><span class="val" id="exit-dir-val">Auto</span></label>
@@ -748,7 +748,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.75 &middot; Jun 14, 2026</div>
+<div id="version-badge">v1.76 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -2759,7 +2759,7 @@ class SceneManager {
         this.orbitControls.dampingFactor = 0.12;
         this.orbitControls.minDistance = 5;
         this.orbitControls.maxDistance = 200;
-        this.orbitControls.enablePan = false;
+        this.orbitControls.enablePan = true; // allow map panning for exit positioning
 
         // Track manual camera — once user adjusts, auto-follow stays off until eye btn resets it
         this._userCamOverride = false;
@@ -3317,8 +3317,8 @@ class SceneManager {
         // Intersect with ground plane (y=0)
         const target = new THREE.Vector3();
         if (this.raycaster.ray.intersectPlane(this.groundPlane, target)) {
-            // Clamp to reasonable range (2km from DZ)
-            const maxDist = 2000;
+            // Clamp to reasonable range (10km from DZ — allows long spots)
+            const maxDist = 10000;
             const dist = Math.sqrt(target.x * target.x + target.z * target.z);
             if (dist > maxDist) {
                 target.x *= maxDist / dist;
@@ -3333,10 +3333,10 @@ class SceneManager {
             const dirRad = Math.atan2(target.x, target.z);
             const dirDeg = ((dirRad * 180 / Math.PI) % 360 + 360) % 360;
 
-            document.getElementById('exit-offset').value = Math.min(offset, 2000);
+            document.getElementById('exit-offset').value = Math.min(offset, 10000);
             document.getElementById('exit-dir').value = Math.round(dirDeg);
             document.getElementById('exit-dir').disabled = false;
-            document.getElementById('exit-offset-val').textContent = `${offset}m`;
+            document.getElementById('exit-offset-val').textContent = offset >= 1000 ? `${(offset/1000).toFixed(1)}km` : `${offset}m`;
             const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
             document.getElementById('exit-dir-val').textContent = `${Math.round(dirDeg)}° (${dirs[Math.round(dirDeg/22.5) % 16]})`;
 
@@ -3377,8 +3377,8 @@ class SceneManager {
             const ez = this.exitMarkerPos.z;
 
             // Set camera to exit altitude view — only snap once when entering pre-flight
-            // Expand orbit max distance to allow exit-altitude zoom out
-            this.orbitControls.maxDistance = exitAltM + 500;
+            // Expand orbit max distance generously so user can pan/zoom to see far exit points
+            this.orbitControls.maxDistance = Math.max(exitAltM * 3, 15000);
             if (!this._exitViewSet) {
                 this._exitViewSet = true;
                 // Position camera at exit altitude, offset slightly south so you look down at an angle
@@ -3386,7 +3386,7 @@ class SceneManager {
                 this.camera.position.set(ex, exitAltM, ez + offset);
                 this.orbitControls.target.set(ex, 0, ez);
                 this.camera.near = 10;
-                this.camera.far = exitAltM * 15;
+                this.camera.far = Math.max(exitAltM * 15, 50000); // far enough for 10km+ exit offset
                 this.camera.updateProjectionMatrix();
                 this.orbitControls.update();
             }
@@ -7617,7 +7617,7 @@ function setupUIControls() {
             document.getElementById('exit-dir-val').textContent = 'Auto';
         } else {
             dirSlider.disabled = false;
-            document.getElementById('exit-offset-val').textContent = `${val}m`;
+            document.getElementById('exit-offset-val').textContent = val >= 1000 ? `${(val/1000).toFixed(1)}km` : `${val}m`;
         }
     });
     document.getElementById('exit-dir').addEventListener('input', () => {
@@ -7742,6 +7742,7 @@ window.startJump = function() {
 
     physics.phase = 'aircraft';
     isRunning = true;
+    sceneManager.orbitControls.enablePan = false; // no panning during flight
     ui.hideLandingScore();
     sceneManager.updateCanopyColor(document.getElementById('canopy-model').value);
     sceneManager.camera.position.set(physics.position.x + 50, physics.position.y + 20, physics.position.z - 30);
@@ -7766,6 +7767,7 @@ window.resetSim = function() {
     input.ffPosition = 'belly';
     if (sceneManager) {
         sceneManager.orbitControls.enabled = true;
+        sceneManager.orbitControls.enablePan = true; // re-enable panning for exit positioning
         sceneManager.skydiver.visible = true;
     }
     physics.reset();
