@@ -576,7 +576,7 @@
     </div>
     <div class="control-group">
         <label><span>Exit Offset</span><span class="val" id="exit-offset-val">Auto (upwind)</span></label>
-        <input type="range" id="exit-offset" min="0" max="10000" step="50" value="0">
+        <input type="range" id="exit-offset" min="0" max="16093" step="50" value="0">
     </div>
     <div class="control-group">
         <label><span>Jump Run Dir</span><span class="val" id="exit-dir-val">Auto</span></label>
@@ -1286,48 +1286,69 @@ function applyCanopyColors() {
     const colors = sceneManager.canopyTopMesh.geometry.attributes.color;
     if (!colors) return;
 
+    // Resolve the fabric color for a given cell index based on the active pattern.
+    const usaRed = new THREE.Color('#BF0A30');
+    const usaWhite = new THREE.Color('#FFFFFF');
+    const usaBlue = new THREE.Color('#002868');
+    const usaMap = [usaBlue, usaWhite, usaRed, usaWhite, usaRed, usaWhite, usaRed, usaWhite, usaBlue];
+    function cellColor(cellIdx) {
+        switch (pattern) {
+            case 'solid':       return c1;
+            case 'alternating': return cellIdx % 2 === 0 ? c1 : c2;
+            case '3stripe':     return (cellIdx < 3 || cellIdx > 5) ? c1 : c2;
+            case 'center':      return (cellIdx >= 3 && cellIdx <= 5) ? c2 : c1;
+            case 'tips':        return (cellIdx <= 1 || cellIdx >= 7) ? c2 : c1;
+            case 'usa':         return usaMap[cellIdx] || usaRed;
+            default:            return cellIdx % 2 === 0 ? c1 : c2;
+        }
+    }
+
+    // Top skin
     for (let iz = 0; iz <= sz; iz++) {
         for (let ix = 0; ix <= sx; ix++) {
             const idx = (iz * (sx + 1) + ix);
-            const u = ix / sx;
-            const cellIdx = Math.min(cells - 1, Math.floor(u * cells));
-            let c;
-            switch (pattern) {
-                case 'solid':
-                    c = c1;
-                    break;
-                case 'alternating':
-                    c = cellIdx % 2 === 0 ? c1 : c2;
-                    break;
-                case '3stripe':
-                    // Cells 0-2 = c1, 3-5 = c2, 6-8 = c1
-                    c = (cellIdx < 3 || cellIdx > 5) ? c1 : c2;
-                    break;
-                case 'center':
-                    // Center 3 cells = c2, rest = c1
-                    c = (cellIdx >= 3 && cellIdx <= 5) ? c2 : c1;
-                    break;
-                case 'tips':
-                    // Tips (0,1,7,8) = c2, rest = c1
-                    c = (cellIdx <= 1 || cellIdx >= 7) ? c2 : c1;
-                    break;
-                case 'usa': {
-                    // American Flag: blue tips, red & white stripes
-                    const usaRed = new THREE.Color('#BF0A30');
-                    const usaWhite = new THREE.Color('#FFFFFF');
-                    const usaBlue = new THREE.Color('#002868');
-                    // Cell map: Blue-White-Red-White-Red-White-Red-White-Blue
-                    const usaMap = [usaBlue, usaWhite, usaRed, usaWhite, usaRed, usaWhite, usaRed, usaWhite, usaBlue];
-                    c = usaMap[cellIdx] || usaRed;
-                    break;
-                }
-                default:
-                    c = cellIdx % 2 === 0 ? c1 : c2;
-            }
+            const cellIdx = Math.min(cells - 1, Math.floor((ix / sx) * cells));
+            const c = cellColor(cellIdx);
             colors.setXYZ(idx, c.r, c.g, c.b);
         }
     }
     colors.needsUpdate = true;
+
+    // Bottom skin — same pattern, slightly darker so it reads as the underside
+    const bottomColors = sceneManager.canopyBottomMesh && sceneManager.canopyBottomMesh.geometry.attributes.color;
+    if (bottomColors) {
+        for (let iz = 0; iz <= sz; iz++) {
+            for (let ix = 0; ix <= sx; ix++) {
+                const idx = (iz * (sx + 1) + ix);
+                const cellIdx = Math.min(cells - 1, Math.floor((ix / sx) * cells));
+                const c = cellColor(cellIdx);
+                bottomColors.setXYZ(idx, c.r * 0.85, c.g * 0.85, c.b * 0.85);
+            }
+        }
+        bottomColors.needsUpdate = true;
+    }
+
+    // Trailing-edge seam — 2 verts per span station (top full, bottom darker)
+    const teColors = sceneManager.canopyTEMesh && sceneManager.canopyTEMesh.geometry.attributes.color;
+    if (teColors) {
+        for (let ix = 0; ix <= sx; ix++) {
+            const cellIdx = Math.min(cells - 1, Math.floor((ix / sx) * cells));
+            const c = cellColor(cellIdx);
+            teColors.setXYZ(ix * 2, c.r, c.g, c.b);
+            teColors.setXYZ(ix * 2 + 1, c.r * 0.85, c.g * 0.85, c.b * 0.85);
+        }
+        teColors.needsUpdate = true;
+    }
+
+    // Pilot chute: the in-flight (collapsed) PC reads white on the American flag rig,
+    // otherwise the default bright orange.
+    if (sceneManager.collapsedPilotChute && sceneManager.collapsedPilotChute.material) {
+        sceneManager.collapsedPilotChute.material.color.set(pattern === 'usa' ? 0xffffff : 0xff6600);
+    }
+    if (sceneManager.pilotChute && sceneManager.pilotChute.material) {
+        sceneManager.pilotChute.material.color.set(pattern === 'usa' ? 0xffffff : 0xffffff);
+    }
+
     saveSettings();
 }
 ['canopy-color1', 'canopy-color2'].forEach(id => {
@@ -2228,6 +2249,35 @@ class WindSystem {
     }
 }
 
+// ==================== TOGGLE / BRAKE TRANSFER CURVE ====================
+// Maps raw toggle stroke (0 = full flight / hands all the way up, 1 = hands at
+// full extension) to an effective brake fraction. Mirrors a real toggle stroke:
+//   • first 1/8 of travel = slack coming out of the brake line → almost no input
+//   • 1/4 stroke ≈ 1/4 brakes, 1/2 stroke ≈ 1/2 brakes
+//   • 3/4 stroke ≈ full brakes
+//   • the last ~10% (≥0.9) is the dynamic landing flare region
+// Piecewise-linear through the control points the pilot described.
+function brakeCurve(p) {
+    p = Math.max(0, Math.min(1, p));
+    const pts = [
+        [0.000, 0.00],
+        [0.125, 0.00],  // slack removed, still ~no input
+        [0.250, 0.25],  // entering 1/4 brakes
+        [0.500, 0.50],  // 1/2 brakes
+        [0.750, 1.00],  // full brakes
+        [1.000, 1.00]   // held past full brakes (flare handled separately)
+    ];
+    for (let i = 1; i < pts.length; i++) {
+        if (p <= pts[i][0]) {
+            const [x0, y0] = pts[i - 1];
+            const [x1, y1] = pts[i];
+            const t = (p - x0) / (x1 - x0);
+            return y0 + (y1 - y0) * t;
+        }
+    }
+    return 1.0;
+}
+
 // ==================== PHYSICS ENGINE ====================
 class PhysicsEngine {
     constructor() { this.reset(); }
@@ -2249,6 +2299,17 @@ class PhysicsEngine {
         this.turnRate = 0;          // current angular velocity (rad/s), builds up in turns
         this.diveSpeed = 0;         // extra speed from dive component of turn
         this.bankAngle = 0;         // current bank angle for visuals
+        // Smoothed toggle positions (effective brake fraction, eased toward target so
+        // nothing in canopy flight happens instantly)
+        this.smoothLeftBrake = 0;
+        this.smoothRightBrake = 0;
+        // Phugoid / recovery-arc oscillator: a lightly damped pitch oscillation that
+        // makes the canopy surge and dive after a control release or a wind gust,
+        // settling back to its trim glide ratio over ~7-10 seconds.
+        this.phugoid = 0;           // pitch deviation from trim (+ = nose up/float, - = nose down/dive)
+        this.phugoidVel = 0;        // rate of change
+        this.prevBrakeCmd = 0;      // last frame's symmetric brake command (for release detection)
+        this.prevGustEvent = 0;     // last frame's gust strength (for gust-onset detection)
         // Freefall instability
         this.tumbleAngle = 0;
         this.tumbleRate = 0;
@@ -2563,19 +2624,29 @@ class PhysicsEngine {
         // Heading = compass bearing (0=N, PI/2=E, PI=S). Increasing = CW = right turn.
         // Right toggle = positive turn (right), left toggle = negative turn (left)
         // Analog toggle depth: touch provides 0-1, keyboard gives full 1.0
-        // When stalled, no flight inputs are possible — canopy is uncontrollable
-        const leftAmt = isStalled ? 0 : (input.leftDepth > 0 ? input.leftDepth : (input.left ? 1 : 0));
-        const rightAmt = isStalled ? 0 : (input.rightDepth > 0 ? input.rightDepth : (input.right ? 1 : 0));
+        // Raw stroke runs through brakeCurve() so the first 1/8 is slack and the
+        // response is gradual; then we ease the effective brake toward that target
+        // so even a binary keyboard press develops smoothly (nothing is instant).
+        const rawLeft  = isStalled ? 0 : (input.leftDepth  > 0 ? input.leftDepth  : (input.left  ? 1 : 0));
+        const rawRight = isStalled ? 0 : (input.rightDepth > 0 ? input.rightDepth : (input.right ? 1 : 0));
+        const targetLeftBrake  = brakeCurve(rawLeft);
+        const targetRightBrake = brakeCurve(rawRight);
+        // Toggle ease: ~2.2/s — a deliberate, fluid pull rather than a snap
+        const toggleEase = Math.min(2.2 * dt, 1);
+        this.smoothLeftBrake  += (targetLeftBrake  - this.smoothLeftBrake)  * toggleEase;
+        this.smoothRightBrake += (targetRightBrake - this.smoothRightBrake) * toggleEase;
+        const leftAmt  = this.smoothLeftBrake;
+        const rightAmt = this.smoothRightBrake;
         const turnInput = leftAmt - rightAmt;
 
         // Turn rate builds up gradually (canopy has inertia), not instant
         const targetTurnRate = turnInput * canopyPerf.turnRate;
-        const turnAccel = 3.0; // how fast the turn develops (rad/s²)
+        const turnAccel = 1.8; // how fast the turn develops (rad/s²) — softer onset
         this.turnRate += (targetTurnRate - this.turnRate) * Math.min(turnAccel * dt, 1);
 
-        // Bank angle follows turn rate
+        // Bank angle follows turn rate (lags behind for a smoother roll-in/out)
         const targetBank = this.turnRate * 0.5; // ~30° bank at full turn rate
-        this.bankAngle += (targetBank - this.bankAngle) * 4 * dt;
+        this.bankAngle += (targetBank - this.bankAngle) * 2.5 * dt;
 
         // Heading changes with current turn rate
         this.heading += this.turnRate * dt;
@@ -2711,6 +2782,41 @@ class PhysicsEngine {
                 finalFwdSpeed = baseFwd * Math.max(0.1, 0.45 - t * 0.2);
                 this.diveSpeed = 0;
             }
+        }
+
+        // ============ PHUGOID / RECOVERY-ARC OSCILLATION ============
+        // Nothing in canopy flight settles instantly. Coming out of brakes or a
+        // flare — or when a gust loads the wing — the canopy surges up and then
+        // dives, oscillating around its trim attitude for ~7-10 seconds before it
+        // returns to its true glide ratio. Modeled as a lightly damped pitch
+        // oscillator (a phugoid). + = nose-up/float, − = nose-down/dive.
+        const flareCmd = input.flare ? 1 : 0;
+        const brakeCmd = Math.max(Math.min(leftAmt, rightAmt), flareCmd);
+        // Releasing stored energy (toggles coming up) kicks off a recovery arc:
+        // the wing balloons up first, then dives, then settles.
+        const release = (this.prevBrakeCmd || 0) - brakeCmd;
+        if (release > 0.05) {
+            this.phugoidVel += release * 2.5; // balloon up, then the cycle carries it down
+        }
+        this.prevBrakeCmd = brakeCmd;
+        // Wind gusts load the wing and trip the same flight cycle
+        if (typeof windSystem !== 'undefined' && windSystem) {
+            if (windSystem._gustJustFired) {
+                this.phugoidVel += (windSystem.gustPeakIntensity || 0.5) * 0.8;
+            }
+            this.prevGustEvent = windSystem.gustEvent || 0;
+        }
+        // Integrate the damped oscillator (period ~8s, zeta ~0.3 → decays in 7-10s)
+        const phugoidPeriod = 8.0;
+        const phOmega = (2 * Math.PI) / phugoidPeriod;
+        const phZeta = 0.30;
+        this.phugoidVel += (-phOmega * phOmega * this.phugoid - 2 * phZeta * phOmega * this.phugoidVel) * dt;
+        this.phugoid += this.phugoidVel * dt;
+        this.phugoid = Math.max(-1, Math.min(1, this.phugoid));
+        // Apply to flight — but not during the scripted flare arc, which owns the wing
+        if (!(input.flare || ft > 0.1)) {
+            descRate *= (1 - this.phugoid * 0.35);   // float reduces descent, dive increases it
+            finalFwdSpeed *= (1 - this.phugoid * 0.12); // dive speeds up, float bleeds speed
         }
 
         // ============ VELOCITY COMPUTATION ============
@@ -3335,8 +3441,8 @@ class SceneManager {
         // Intersect with ground plane (y=0)
         const target = new THREE.Vector3();
         if (this.raycaster.ray.intersectPlane(this.groundPlane, target)) {
-            // Clamp to reasonable range (10km from DZ — allows long spots)
-            const maxDist = 10000;
+            // Clamp to reasonable range (10 miles from DZ — allows long spots)
+            const maxDist = 16093;
             const dist = Math.sqrt(target.x * target.x + target.z * target.z);
             if (dist > maxDist) {
                 target.x *= maxDist / dist;
@@ -3351,7 +3457,7 @@ class SceneManager {
             const dirRad = Math.atan2(target.x, target.z);
             const dirDeg = ((dirRad * 180 / Math.PI) % 360 + 360) % 360;
 
-            document.getElementById('exit-offset').value = Math.min(offset, 10000);
+            document.getElementById('exit-offset').value = Math.min(offset, 16093);
             document.getElementById('exit-dir').value = Math.round(dirDeg);
             document.getElementById('exit-dir').disabled = false;
             document.getElementById('exit-offset-val').textContent = offset >= 1000 ? `${(offset/1000).toFixed(1)}km` : `${offset}m`;
@@ -3396,7 +3502,7 @@ class SceneManager {
 
             // Set camera to exit altitude view — only snap once when entering pre-flight
             // Expand orbit max distance generously so user can pan/zoom to see far exit points
-            this.orbitControls.maxDistance = Math.max(exitAltM * 3, 15000);
+            this.orbitControls.maxDistance = Math.max(exitAltM * 3, 18000);
             if (!this._exitViewSet) {
                 this._exitViewSet = true;
                 // Position camera at exit altitude, offset slightly south so you look down at an angle
@@ -3406,7 +3512,35 @@ class SceneManager {
                 this.camera.near = 10;
                 this.camera.far = Math.max(exitAltM * 15, 50000); // far enough for 10km+ exit offset
                 this.camera.updateProjectionMatrix();
+
+                // ---- MAP MODE ----
+                // While picking an exit point we behave like a top-down map: keep the
+                // camera looking down so the sky never swallows the view, and let the
+                // user DRAG to pan across the ground (left-drag = pan) and scroll/pinch
+                // to zoom. Rotation is locked to a shallow tilt.
+                this.orbitControls.minPolarAngle = 0;
+                this.orbitControls.maxPolarAngle = 0.45; // ~26° — never reaches the horizon
+                this.orbitControls.screenSpacePanning = true;
+                this.orbitControls.enablePan = true;
+                this.orbitControls.mouseButtons = {
+                    LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE
+                };
+                this.orbitControls.touches = {
+                    ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN
+                };
                 this.orbitControls.update();
+            }
+
+            // Keep the panned view within a 10-mile (16093m) radius of the DZ
+            const panR = 16093;
+            const tgt = this.orbitControls.target;
+            const tD = Math.sqrt(tgt.x * tgt.x + tgt.z * tgt.z);
+            if (tD > panR) {
+                const k = panR / tD;
+                const shiftX = tgt.x * (1 - k);
+                const shiftZ = tgt.z * (1 - k);
+                tgt.x -= shiftX; tgt.z -= shiftZ;
+                this.camera.position.x -= shiftX; this.camera.position.z -= shiftZ;
             }
 
             // Compute freefall drift: belly at ~53 m/s terminal, from exit to deploy alt
@@ -3443,8 +3577,20 @@ class SceneManager {
             this.exitMarkerGroup.visible = false;
             this.driftMarkerGroup.visible = false;
             this.driftLine.visible = false;
-            this._exitViewSet = false;
             this.orbitControls.maxDistance = 200;
+            // Restore normal free-orbit controls once we leave exit-picking map mode
+            if (this._exitViewSet) {
+                this.orbitControls.minPolarAngle = 0;
+                this.orbitControls.maxPolarAngle = Math.PI;
+                this.orbitControls.screenSpacePanning = false;
+                this.orbitControls.mouseButtons = {
+                    LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN
+                };
+                this.orbitControls.touches = {
+                    ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN
+                };
+            }
+            this._exitViewSet = false;
         }
     }
 
@@ -5813,6 +5959,11 @@ class SceneManager {
                 if (Math.abs(state.turnRate || 0) > 0.15) {
                     canopyPitch -= Math.abs(state.turnRate) * 0.15; // nose down in turn
                 }
+                // Recovery-arc (phugoid) pitch: surge up then dive, settling back to trim.
+                // Only show it outside the scripted flare, which drives its own pitch.
+                if (!(input.flare || (state.flareTimer || 0) > 0.1)) {
+                    canopyPitch += (state.phugoid || 0) * 0.25;
+                }
 
                 // Gust reaction: canopy perturbation scaled by gust intensity²
                 const gustE = windSystem ? (windSystem.gustEvent || 0) : 0;
@@ -7232,13 +7383,23 @@ function setupTouchControls() {
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
                 font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">REAR</span></div>
-        <!-- Canopy toggle depth bars (moved inward to clear iPhone camera area) -->
-        <div id="touch-depth-left" style="position:absolute;left:48px;bottom:80px;width:40px;height:200px;
-            background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
-            border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;display:none;"></div>
-        <div id="touch-depth-right" style="position:absolute;right:48px;bottom:80px;width:40px;height:200px;
-            background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
-            border-radius:20px;border:1px solid rgba(255,255,255,0.1);pointer-events:none;display:none;"></div>
+        <!-- Canopy toggle depth bars — long stroke: slack → 1/4 → 1/2 → full brakes → flare -->
+        <div id="touch-depth-left" style="position:absolute;left:48px;bottom:60px;width:40px;height:62vh;
+            background:linear-gradient(to bottom,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.04) 12%,rgba(255,210,80,0.10) 25%,rgba(255,165,0,0.16) 50%,rgba(255,90,0,0.22) 75%,rgba(239,68,68,0.30) 100%);
+            border-radius:20px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;display:none;">
+            <div style="position:absolute;top:12%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:25%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:50%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:75%;width:100%;height:1px;background:rgba(255,255,255,0.28);"></div>
+        </div>
+        <div id="touch-depth-right" style="position:absolute;right:48px;bottom:60px;width:40px;height:62vh;
+            background:linear-gradient(to bottom,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.04) 12%,rgba(255,210,80,0.10) 25%,rgba(255,165,0,0.16) 50%,rgba(255,90,0,0.22) 75%,rgba(239,68,68,0.30) 100%);
+            border-radius:20px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;display:none;">
+            <div style="position:absolute;top:12%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:25%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:50%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:75%;width:100%;height:1px;background:rgba(255,255,255,0.28);"></div>
+        </div>
         <div id="touch-indicator-left" style="position:absolute;left:48px;width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
         <div id="touch-indicator-right" style="position:absolute;right:48px;width:40px;height:8px;
@@ -7281,10 +7442,17 @@ function setupTouchControls() {
     const touches = { left: null, right: null };
     const indicators = { left: document.getElementById('touch-indicator-left'), right: document.getElementById('touch-indicator-right') };
 
+    // Map a touch Y to a 0..1 toggle stroke that lines up with the visual depth bar.
+    // Top of the bar = 0 (full flight, hands up); bottom = 1 (hands at full extension).
+    // The longer stroke gives finer control over the slack→quarter→half→full range.
     function getTouchDepth(y) {
         const h = window.innerHeight;
-        const frac = Math.max(0, Math.min(1, y / h));
-        return 0.2 + frac * 0.8;
+        const barBottom = 60;          // px above screen bottom (matches CSS)
+        const barHeight = h * 0.62;    // matches the visual track height
+        const yBottom = h - barBottom; // screen-y at full brakes
+        const yTop = yBottom - barHeight;
+        const frac = (y - yTop) / (yBottom - yTop);
+        return Math.max(0, Math.min(1, frac));
     }
 
     function updateIndicator(side, y) {
@@ -7328,7 +7496,8 @@ function setupTouchControls() {
                 } else {
                     input.right = true; input.rightDepth = rDepth; input.leftDepth = lDepth; input.down = true;
                 }
-            } else if (avgDepth > 0.75) {
+            } else if (avgDepth > 0.88) {
+                // Both toggles buried (last ~10% of stroke) = full landing flare
                 input.flare = true; input.leftDepth = lDepth; input.rightDepth = rDepth;
             } else {
                 input.down = true; input.leftDepth = lDepth; input.rightDepth = rDepth;
