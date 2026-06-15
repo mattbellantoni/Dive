@@ -11,6 +11,58 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #000; }
         canvas { display: block; }
 
+        /* ===== WELCOME / SPLASH SCREEN ===== */
+        #welcome-overlay {
+            position: fixed; inset: 0; z-index: 900;
+            background: radial-gradient(circle at 50% 30%, #14243f 0%, #0a1020 55%, #05080f 100%);
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px; overflow-y: auto;
+        }
+        #welcome-overlay.hidden { display: none; }
+        #welcome-card {
+            width: 100%; max-width: 460px; color: #e8eef7;
+            text-align: center; padding: 8px 4px 16px;
+        }
+        #welcome-card .wc-logo {
+            font-size: 30px; font-weight: 800; letter-spacing: 0.5px;
+            background: linear-gradient(90deg,#60a5fa,#a78bfa); -webkit-background-clip: text;
+            background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px;
+        }
+        #welcome-card .wc-tag {
+            font-size: 14px; font-style: italic; color: #9fb3cc; margin-bottom: 18px;
+        }
+        #welcome-card .wc-desc {
+            font-size: 13.5px; line-height: 1.6; color: #cdd9ea;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; text-align: left;
+        }
+        #welcome-card .wc-desc a { color: #7cb0ff; text-decoration: none; }
+        #welcome-card .wc-notes {
+            text-align: left; background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+            padding: 12px 16px; margin-bottom: 18px;
+        }
+        #welcome-card .wc-notes h3 {
+            font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+            color: #8fa6c2; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;
+        }
+        #welcome-card .wc-notes .wc-updated { font-size: 10.5px; font-weight: 500; color: #6b7f99; text-transform: none; letter-spacing: 0; }
+        #welcome-card .wc-notes .wc-ver { font-size: 11px; color: #a78bfa; margin-bottom: 8px; }
+        #welcome-card .wc-notes ul { list-style: none; }
+        #welcome-card .wc-notes li {
+            font-size: 12.5px; line-height: 1.5; color: #cdd9ea; padding-left: 16px;
+            position: relative; margin-bottom: 5px;
+        }
+        #welcome-card .wc-notes li::before {
+            content: '▸'; position: absolute; left: 0; color: #60a5fa;
+        }
+        #welcome-enter {
+            background: linear-gradient(90deg,#3b82f6,#6366f1); border: none; color: #fff;
+            padding: 13px 40px; border-radius: 10px; font-weight: 700; font-size: 15px;
+            cursor: pointer; box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+        }
+        #welcome-enter:active { transform: translateY(1px); }
+
         /* ===== DZ SELECTOR MAP ===== */
         #dz-selector {
             position: fixed; inset: 0; z-index: 500; background: #111;
@@ -389,6 +441,25 @@
 </head>
 <body>
 
+<!-- WELCOME / SPLASH (first visit + after updates) -->
+<div id="welcome-overlay" class="hidden">
+    <div id="welcome-card">
+        <div class="wc-logo">Skydive Mobile</div>
+        <div class="wc-tag">"It's Always Safe to Jump Online"</div>
+        <div class="wc-desc">
+            Skydive simulator designed to prepare for live wind conditions at your favorite dropzone.
+            Use the gear icon to configure your skydive. We welcome all feedback via email:
+            <a href="mailto:support@skydivemobile.com">support@skydivemobile.com</a>
+        </div>
+        <div class="wc-notes">
+            <h3>Latest Patch Notes <span class="wc-updated" id="wc-updated"></span></h3>
+            <div class="wc-ver" id="wc-version"></div>
+            <ul id="wc-patch-list"></ul>
+        </div>
+        <button id="welcome-enter">Enter Simulator</button>
+    </div>
+</div>
+
 <!-- DZ SELECTOR -->
 <div id="dz-selector">
     <div id="dz-header">
@@ -749,7 +820,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.77 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.78 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -765,6 +836,104 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ==================== WELCOME / SPLASH SCREEN ====================
+const APP_VERSION = 'v1.78';
+const APP_UPDATED = 'June 15, 2026';
+const PATCH_NOTES = [
+    'Canopy flight feels truer to life — smoother, more gradual controls with natural recovery cycles after brakes, flares, and gusts.',
+    'Easier exit planning — drag the dropzone map to scout any spot within 10 miles.',
+    'A more polished, immersive full-screen experience.'
+];
+
+(function initWelcomeScreen() {
+    const SEEN_KEY = 'skydivemobile_seen_version';
+    function setup() {
+        const overlay = document.getElementById('welcome-overlay');
+        if (!overlay) return;
+        // Populate dynamic content
+        const verEl = document.getElementById('wc-version');
+        const updEl = document.getElementById('wc-updated');
+        const listEl = document.getElementById('wc-patch-list');
+        if (verEl) verEl.textContent = APP_VERSION;
+        if (updEl) updEl.textContent = 'Last updated ' + APP_UPDATED;
+        if (listEl) listEl.innerHTML = PATCH_NOTES.map(n => `<li>${n}</li>`).join('');
+
+        // Show on first visit or whenever the version has changed since last seen
+        let seen = null;
+        try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
+        if (seen !== APP_VERSION) {
+            overlay.classList.remove('hidden');
+        }
+
+        const dismiss = () => {
+            overlay.classList.add('hidden');
+            try { localStorage.setItem(SEEN_KEY, APP_VERSION); } catch (e) {}
+        };
+        const btn = document.getElementById('welcome-enter');
+        if (btn) {
+            btn.addEventListener('click', dismiss);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); dismiss(); }, { passive: false });
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+    } else {
+        setup();
+    }
+})();
+
+// ==================== FULL-SCREEN EXPERIENCE ====================
+// Give web users an immersive, edge-to-edge view: collapse the browser bar a few
+// seconds after they arrive, and reveal it again whenever they rotate from
+// portrait to landscape. The Fullscreen API needs a user gesture, so we also
+// fall back to entering fullscreen on the first tap/click.
+(function initFullscreen() {
+    const el = document.documentElement;
+    function enterFS() {
+        try {
+            if (document.fullscreenElement) return;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (req) { const p = req.call(el); if (p && p.catch) p.catch(() => {}); }
+        } catch (e) {}
+    }
+    function exitFS() {
+        try {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+            const ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (ex) { const p = ex.call(document); if (p && p.catch) p.catch(() => {}); }
+        } catch (e) {}
+    }
+
+    // Enter fullscreen on the first user gesture (most reliable path).
+    function onFirstGesture() {
+        enterFS();
+        window.removeEventListener('pointerdown', onFirstGesture);
+        window.removeEventListener('touchend', onFirstGesture);
+        window.removeEventListener('keydown', onFirstGesture);
+    }
+    window.addEventListener('pointerdown', onFirstGesture, { once: false });
+    window.addEventListener('touchend', onFirstGesture, { once: false });
+    window.addEventListener('keydown', onFirstGesture, { once: false });
+
+    // Best-effort attempt a few seconds in (succeeds if a gesture has occurred).
+    setTimeout(enterFS, 4000);
+
+    // Reveal the browser bar each time the device rotates from portrait to landscape.
+    let wasPortrait = window.matchMedia('(orientation: portrait)').matches;
+    function onOrientation() {
+        const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+        if (wasPortrait && !isPortrait) {
+            // portrait -> landscape: show the browser chrome again
+            exitFS();
+        }
+        wasPortrait = isPortrait;
+    }
+    const mq = window.matchMedia('(orientation: landscape)');
+    if (mq.addEventListener) mq.addEventListener('change', onOrientation);
+    else if (mq.addListener) mq.addListener(onOrientation);
+    window.addEventListener('orientationchange', onOrientation);
+})();
 
 // ==================== CANOPY DATABASE ====================
 const CANOPY_DB = {
