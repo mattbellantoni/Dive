@@ -14,54 +14,55 @@
         /* ===== WELCOME / SPLASH SCREEN ===== */
         #welcome-overlay {
             position: fixed; inset: 0; z-index: 900;
-            background: radial-gradient(circle at 50% 30%, #14243f 0%, #0a1020 55%, #05080f 100%);
+            background: radial-gradient(circle at 50% 22%, #16294a 0%, #0a1224 55%, #05080f 100%);
             display: flex; align-items: center; justify-content: center;
             padding: 24px; overflow-y: auto;
         }
         #welcome-overlay.hidden { display: none; }
         #welcome-card {
-            width: 100%; max-width: 460px; color: #e8eef7;
-            text-align: center; padding: 8px 4px 16px;
+            width: 100%; max-width: 400px; color: #e8eef7; text-align: center;
+            padding: 36px 30px 26px; margin: auto;
+            background: rgba(255,255,255,0.045);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 24px;
+            box-shadow: 0 28px 70px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+            -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
         }
+        #welcome-card .wc-emblem { width: 62px; height: 62px; margin: 0 auto 16px; display: block; }
         #welcome-card .wc-logo {
-            font-size: 30px; font-weight: 800; letter-spacing: 0.5px;
+            font-size: 31px; font-weight: 800; letter-spacing: 0.4px; line-height: 1.1;
             background: linear-gradient(90deg,#60a5fa,#a78bfa); -webkit-background-clip: text;
-            background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px;
+            background-clip: text; -webkit-text-fill-color: transparent;
         }
         #welcome-card .wc-tag {
-            font-size: 14px; font-style: italic; color: #9fb3cc; margin-bottom: 18px;
+            font-size: 12.5px; font-style: italic; color: #93a7c4; margin-top: 7px; letter-spacing: 0.3px;
+        }
+        #welcome-card .wc-divider {
+            width: 54px; height: 2px; margin: 20px auto;
+            background: linear-gradient(90deg, transparent, rgba(167,139,250,0.85), transparent);
+            border-radius: 2px;
         }
         #welcome-card .wc-desc {
-            font-size: 13.5px; line-height: 1.6; color: #cdd9ea;
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; text-align: left;
+            font-size: 14px; line-height: 1.65; color: #d4deec; margin: 0 auto 16px; max-width: 320px;
         }
-        #welcome-card .wc-desc a { color: #7cb0ff; text-decoration: none; }
-        #welcome-card .wc-notes {
-            text-align: left; background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-            padding: 12px 16px; margin-bottom: 18px;
+        #welcome-card .wc-contact {
+            font-size: 12px; line-height: 1.5; color: #8aa0bd; margin-bottom: 24px;
         }
-        #welcome-card .wc-notes h3 {
-            font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
-            color: #8fa6c2; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: baseline;
-        }
-        #welcome-card .wc-notes .wc-updated { font-size: 10.5px; font-weight: 500; color: #6b7f99; text-transform: none; letter-spacing: 0; }
-        #welcome-card .wc-notes .wc-ver { font-size: 11px; color: #a78bfa; margin-bottom: 8px; }
-        #welcome-card .wc-notes ul { list-style: none; }
-        #welcome-card .wc-notes li {
-            font-size: 12.5px; line-height: 1.5; color: #cdd9ea; padding-left: 16px;
-            position: relative; margin-bottom: 5px;
-        }
-        #welcome-card .wc-notes li::before {
-            content: '▸'; position: absolute; left: 0; color: #60a5fa;
-        }
+        #welcome-card .wc-contact a { color: #8fc0ff; text-decoration: none; }
         #welcome-enter {
-            background: linear-gradient(90deg,#3b82f6,#6366f1); border: none; color: #fff;
-            padding: 13px 40px; border-radius: 10px; font-weight: 700; font-size: 15px;
-            cursor: pointer; box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+            display: block; width: 100%; padding: 14px 0;
+            background: linear-gradient(90deg,#3b82f6,#7c5cff); border: none; color: #fff;
+            border-radius: 13px; font-weight: 700; font-size: 14px; letter-spacing: 1.4px;
+            text-transform: uppercase; cursor: pointer;
+            box-shadow: 0 10px 28px rgba(91,103,255,0.45);
+            transition: transform .1s ease, box-shadow .2s ease;
         }
+        #welcome-enter:hover { box-shadow: 0 14px 34px rgba(91,103,255,0.62); }
         #welcome-enter:active { transform: translateY(1px); }
+        #welcome-card .wc-footer {
+            margin-top: 18px; font-size: 10.5px; line-height: 1.5; color: #5f7186; letter-spacing: 0.2px;
+        }
+        #welcome-card .wc-footer .wc-ver { color: #a78bfa; font-weight: 600; }
 
         /* ===== DZ SELECTOR MAP ===== */
         #dz-selector {
@@ -172,6 +173,16 @@
         .ctrl-btn.active { background: #f59e0b; }
         .ctrl-btn.flare-active { background: #ef4444; }
         .ctrl-sep { width: 1px; height: 30px; background: rgba(255,255,255,0.15); }
+
+        /* Freefall body-position buttons (flank the PULL button) */
+        .ff-pos-btn {
+            position: fixed; bottom: 14px; width: 44px; height: 44px; border-radius: 50%;
+            display: none; align-items: center; justify-content: center; flex-direction: column;
+            font: bold 8px/1.05 sans-serif; color: #fff; letter-spacing: 0.3px;
+            background: rgba(0,0,0,0.6); z-index: 200; cursor: pointer; text-align: center;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
+        }
+        .ff-pos-btn.ff-pos-active { box-shadow: inset 0 0 0 2px #fff, 0 0 14px rgba(255,255,255,0.45); }
 
         /* Compass */
         #compass-container {
@@ -444,19 +455,29 @@
 <!-- WELCOME / SPLASH (first visit + after updates) -->
 <div id="welcome-overlay" class="hidden">
     <div id="welcome-card">
+        <svg class="wc-emblem" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="wc-grad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#60a5fa"/>
+                    <stop offset="1" stop-color="#a78bfa"/>
+                </linearGradient>
+            </defs>
+            <path d="M5 31 a27 23 0 0 1 54 0 q-13 -9 -27 0 q-14 -9 -27 0 z" fill="url(#wc-grad)"/>
+            <path d="M8 32 L31 50 M22 33 L31 50 M42 33 L33 50 M56 32 L33 50" stroke="#cdd9ea" stroke-width="1.3" stroke-linecap="round"/>
+            <circle cx="32" cy="52" r="3" fill="#e8eef7"/>
+        </svg>
         <div class="wc-logo">Skydive Mobile</div>
         <div class="wc-tag">"It's Always Safe to Jump Online"</div>
+        <div class="wc-divider"></div>
         <div class="wc-desc">
-            Skydive simulator designed to prepare for live wind conditions at your favorite dropzone.
-            Use the gear icon to configure your skydive. We welcome all feedback via email:
-            <a href="mailto:support@skydivemobile.com">support@skydivemobile.com</a>
+            Rehearse your next jump before you ever leave the ground. Load live winds over any
+            dropzone on earth, then fly your freefall and canopy just like the real thing.
         </div>
-        <div class="wc-notes">
-            <h3>Latest Patch Notes <span class="wc-updated" id="wc-updated"></span></h3>
-            <div class="wc-ver" id="wc-version"></div>
-            <ul id="wc-patch-list"></ul>
+        <div class="wc-contact">
+            Tap the gear to set up your jump.<br>Ideas or feedback? <a href="mailto:support@skydivemobile.com">support@skydivemobile.com</a>
         </div>
-        <button id="welcome-enter">Enter Simulator</button>
+        <button id="welcome-enter">Dive In</button>
+        <div class="wc-footer" id="wc-footer"></div>
     </div>
 </div>
 
@@ -657,9 +678,9 @@
         <label><span>Body Position</span></label>
         <select id="body-pos">
             <option value="belly">Belly (120 mph)</option>
-            <option value="headDown">Head Down (160 mph)</option>
-            <option value="sitfly">Sit Fly (140 mph)</option>
-            <option value="backfly">Back Fly (115 mph)</option>
+            <option value="track">Track (135 mph)</option>
+            <option value="sitfly">Sit Fly (130 mph)</option>
+            <option value="headdown">Head Down (160 mph)</option>
         </select>
     </div>
     <div class="control-group" style="margin-top:8px;">
@@ -693,12 +714,12 @@
     <div class="ctrl-btn" id="ctrl-flare" style="width:auto;padding:0 14px;">SPACE<br><span style="font-size:8px">FLARE</span></div>
     <div class="ctrl-sep" id="ff-sep"></div>
     <div style="display:none;flex-direction:column;gap:4px;" id="ff-updown-group">
-        <div class="ctrl-btn" id="ctrl-hd" style="width:44px;height:34px;">&#x2191;<br><span style="font-size:8px">HD</span></div>
-        <div class="ctrl-btn" id="ctrl-sit" style="width:44px;height:34px;">&#x2193;<br><span style="font-size:8px">SIT</span></div>
+        <div class="ctrl-btn" id="ctrl-hd" style="width:44px;height:34px;" onclick="setFreefallPosition('headdown')">HD<br><span style="font-size:8px">HEAD DN</span></div>
+        <div class="ctrl-btn" id="ctrl-sit" style="width:44px;height:34px;" onclick="setFreefallPosition('sitfly')">S<br><span style="font-size:8px">SIT</span></div>
     </div>
     <div style="display:none;flex-direction:column;gap:4px;" id="ff-at-group">
-        <div class="ctrl-btn" id="ctrl-track" style="width:44px;height:34px;">T<br><span style="font-size:8px">TRACK</span></div>
-        <div class="ctrl-btn" id="ctrl-arch" style="width:44px;height:34px;">A<br><span style="font-size:8px">ARCH</span></div>
+        <div class="ctrl-btn" id="ctrl-track" style="width:44px;height:34px;" onclick="setFreefallPosition('track')">T<br><span style="font-size:8px">TRACK</span></div>
+        <div class="ctrl-btn" id="ctrl-arch" style="width:44px;height:34px;" onclick="setFreefallPosition('belly')">B<br><span style="font-size:8px">BELLY</span></div>
     </div>
 </div>
 
@@ -820,7 +841,17 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.78 &middot; Jun 15, 2026</div>
+<!-- Freefall body-position buttons — two on each side of the PULL button -->
+<div class="ff-pos-btn ff-pos-active" id="ff-btn-belly" data-pos="belly"
+    style="left:calc(50% - 134px);border:2px solid #22c55e;" onclick="setFreefallPosition('belly')">BELLY</div>
+<div class="ff-pos-btn" id="ff-btn-track" data-pos="track"
+    style="left:calc(50% - 84px);border:2px solid #3b82f6;" onclick="setFreefallPosition('track')">TRACK</div>
+<div class="ff-pos-btn" id="ff-btn-sit" data-pos="sitfly"
+    style="left:calc(50% + 40px);border:2px solid #f59e0b;" onclick="setFreefallPosition('sitfly')">SIT</div>
+<div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
+    style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
+
+<div id="version-badge">v1.79 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -838,33 +869,23 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.78';
+const APP_VERSION = 'v1.79';
 const APP_UPDATED = 'June 15, 2026';
-const PATCH_NOTES = [
-    'Canopy flight feels truer to life — smoother, more gradual controls with natural recovery cycles after brakes, flares, and gusts.',
-    'Easier exit planning — drag the dropzone map to scout any spot within 10 miles.',
-    'A more polished, immersive full-screen experience.'
-];
+const APP_UPDATED_TIME = '2:30 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
     function setup() {
         const overlay = document.getElementById('welcome-overlay');
         if (!overlay) return;
-        // Populate dynamic content
-        const verEl = document.getElementById('wc-version');
-        const updEl = document.getElementById('wc-updated');
-        const listEl = document.getElementById('wc-patch-list');
-        if (verEl) verEl.textContent = APP_VERSION;
-        if (updEl) updEl.textContent = 'Last updated ' + APP_UPDATED;
-        if (listEl) listEl.innerHTML = PATCH_NOTES.map(n => `<li>${n}</li>`).join('');
-
-        // Show on first visit or whenever the version has changed since last seen
-        let seen = null;
-        try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
-        if (seen !== APP_VERSION) {
-            overlay.classList.remove('hidden');
+        // Footer: version + date and time of last update (US Eastern)
+        const footEl = document.getElementById('wc-footer');
+        if (footEl) {
+            footEl.innerHTML = `<span class="wc-ver">${APP_VERSION}</span> · Updated ${APP_UPDATED} · ${APP_UPDATED_TIME}`;
         }
+
+        // Show the welcome screen on every visit / refresh / return.
+        overlay.classList.remove('hidden');
 
         const dismiss = () => {
             overlay.classList.add('hidden');
@@ -1096,6 +1117,18 @@ const SAVED_DZS = [
     { name: 'Skydive Midwest / Sturtevant (WI)', lat: 42.6893, lng: -87.9052, elev: 230 },
     { name: 'Skydive Dallas (TX)', lat: 33.4523, lng: -96.3816, elev: 198 },
     { name: 'Skydive Monterey Bay (CA)', lat: 36.9369, lng: -121.7903, elev: 42 },
+    // --- Bucket-list / scenic drop zones ---
+    { name: 'Pyramids of Giza (Egypt)', lat: 29.9792, lng: 31.1342, elev: 70 },
+    { name: 'Fox Glacier (New Zealand)', lat: -43.4646, lng: 170.0185, elev: 200 },
+    { name: 'Grand Canyon (AZ, USA)', lat: 35.9528, lng: -112.1469, elev: 2014 },
+    { name: 'Mission Beach, Queensland (Australia)', lat: -17.8690, lng: 146.1070, elev: 5 },
+    { name: 'Lauterbrunnen Valley (Switzerland)', lat: 46.5933, lng: 7.9085, elev: 800 },
+    { name: 'Rio de Janeiro (Brazil)', lat: -22.9068, lng: -43.1729, elev: 5 },
+    { name: 'Voss / Bømoen (Norway)', lat: 60.6389, lng: 6.5006, elev: 45 },
+    { name: 'Namib Desert / Swakopmund (Namibia)', lat: -22.6660, lng: 14.5340, elev: 5 },
+    { name: 'Mysore (India)', lat: 12.2300, lng: 76.6557, elev: 770 },
+    { name: 'Mount Everest / Syangboche (Nepal)', lat: 27.8344, lng: 86.7130, elev: 3780 },
+    { name: 'Palm Jumeirah, Dubai (UAE)', lat: 25.0915, lng: 55.1300, elev: 3 },
 ];
 
 let dzMap, dzMarker, selectedDZ = null;
@@ -1190,6 +1223,42 @@ function initDZMap() {
         select.appendChild(opt);
     });
 
+    // Zoom the map to the user's approximate location (IP geolocation) and drop a
+    // starter pin there as the target — unless they already have a saved dropzone.
+    fetch('https://ipapi.co/json/')
+        .then(r => r.json())
+        .then(loc => {
+            const lat = loc && (loc.latitude ?? loc.lat);
+            const lng = loc && (loc.longitude ?? loc.lon);
+            if (typeof lat !== 'number' || typeof lng !== 'number') return;
+            // Center the picker on the user regardless
+            dzMap.setView([lat, lng], 13);
+            // Only auto-place a target if nothing has been chosen/restored yet
+            if (selectedDZ) return;
+            if (dzMarker) dzMap.removeLayer(dzMarker);
+            dzMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="width:24px;height:24px;background:#ef4444;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.5);transform:translate(-12px,-12px);"></div>',
+                    iconSize: [0, 0]
+                })
+            }).addTo(dzMap);
+            document.getElementById('dz-lat').textContent = lat.toFixed(5);
+            document.getElementById('dz-lon').textContent = lng.toFixed(5);
+            document.getElementById('dz-elev').textContent = 'Est.';
+            document.getElementById('btn-confirm-dz').disabled = false;
+            selectedDZ = { lat, lng, elevation: 0 };
+            fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.results && data.results[0] && selectedDZ) {
+                        selectedDZ.elevation = data.results[0].elevation;
+                        document.getElementById('dz-elev').textContent = `${Math.round(selectedDZ.elevation * CONFIG.M_TO_FT)} ft MSL`;
+                    }
+                }).catch(() => {});
+        })
+        .catch(() => { /* IP lookup unavailable — keep default world view */ });
+
     // Populate settings panel DZ dropdown
     const settingsDzSelect = document.getElementById('settings-dz-select');
     if (settingsDzSelect) {
@@ -1199,7 +1268,18 @@ function initDZMap() {
             opt.textContent = dz.name;
             settingsDzSelect.appendChild(opt);
         });
+        // "Pick a Spot" → opens the world map selector to drop a pin anywhere
+        const pickOpt = document.createElement('option');
+        pickOpt.value = 'pick';
+        pickOpt.textContent = '📍 Pick a Spot (map)…';
+        settingsDzSelect.appendChild(pickOpt);
         settingsDzSelect.addEventListener('change', () => {
+            if (settingsDzSelect.value === 'pick') {
+                // Reopen the dropzone map; restore the dropdown to the current DZ
+                window.showDZSelector();
+                syncSettingsDzDropdown();
+                return;
+            }
             const idx = parseInt(settingsDzSelect.value);
             if (isNaN(idx)) return;
             const dz = SAVED_DZS[idx];
@@ -2546,182 +2626,105 @@ class PhysicsEngine {
         const rho = this.airDensity(this.position.y);
         const m = massKg;
 
-        // ============ BODY ORIENTATION SYSTEM ============
-        // ffPitch: 0 = belly-to-earth, negative = tracking/head-down, positive = sit/backflip
-        // ffYaw: heading rotation around vertical axis (left/right turns)
+        // ============ BODY POSITION + AXIS CONTROL SYSTEM ============
+        // Discipline is chosen with the four position buttons. The two control bars
+        // are continuous axis inputs:
+        //   ffTurn  (left bar)  → X-axis: rotate left/right (world-class turn inputs)
+        //   ffDrive (right bar) → Y-axis: tilt forward/back to drive across the sky
+        const turnIn = Math.max(-1, Math.min(1,
+            (input.ffTurn !== undefined && input.ffTurn !== 0) ? input.ffTurn
+            : (input.right ? 1 : (input.left ? -1 : 0))));
+        const driveIn = Math.max(-1, Math.min(1,
+            (input.ffDrive !== undefined && input.ffDrive !== 0) ? input.ffDrive
+            : (input.up ? 1 : (input.down ? -1 : 0))));
+        const pos = input.ffPosition || 'belly';
+        this.bodyPosition = pos;
 
-        // --- YAW: Left/Right arrows spin you in flat turns ---
-        const yawAccel = 4.0;   // rad/s² — how fast turn develops
-        const yawMax = 5.0;     // rad/s — max spin rate (~1 turn/1.3s)
-        if (input.left) {
-            this.ffYawRate += yawAccel * dt;
-        } else if (input.right) {
-            this.ffYawRate -= yawAccel * dt;
+        // World-class position envelope:
+        //   cdaMult   — fall rate vs belly (lower = faster)
+        //   baseDrive — inherent forward drive of the position (track flies forward)
+        //   driveAuth — how much the drive bar adds
+        //   turnAuth  — max yaw rate (rad/s)
+        //   lean      — fore/aft body-lean range used for drive + visuals
+        const POS = {
+            belly:    { cdaMult: 1.00, baseDrive: 0.00, driveAuth: 0.16, turnAuth: 2.6, lean: 0.30 },
+            track:    { cdaMult: 0.60, baseDrive: 0.42, driveAuth: 0.20, turnAuth: 2.0, lean: 0.22 },
+            sitfly:   { cdaMult: 0.74, baseDrive: 0.00, driveAuth: 0.20, turnAuth: 3.0, lean: 0.35 },
+            headdown: { cdaMult: 0.40, baseDrive: 0.00, driveAuth: 0.26, turnAuth: 3.4, lean: 0.30 },
+        };
+        const P = POS[pos] || POS.belly;
+
+        // --- X AXIS: turn (yaw) from the left bar ---
+        const yawAccel = 5.0;
+        const yawMax = P.turnAuth;
+        if (Math.abs(turnIn) > 0.04) {
+            this.ffYawRate += turnIn * yawAccel * dt;
         } else {
-            // Decelerate naturally (air resistance slows spin)
-            this.ffYawRate *= Math.max(0, 1 - 2.5 * dt);
+            this.ffYawRate *= Math.max(0, 1 - 3.0 * dt);
         }
         this.ffYawRate = Math.max(-yawMax, Math.min(yawMax, this.ffYawRate));
         this.ffYaw += this.ffYawRate * dt;
 
-        // --- PITCH: controlled by body position (A/T/D keys) + arrow keys for fine-tune ---
-        // Body positions: arch (stable belly, slight positive pitch), track (negative pitch, forward drive),
-        // dearch (flat/unstable), belly (neutral default)
-        // Target pitch for each position:
-        const positionTargets = { arch: 0.15, belly: 0, track: -0.7, dearch: -0.05 };
-        const targetPitch = positionTargets[input.ffPosition] || 0;
+        // --- Y AXIS: forward/back lean from the right bar ---
+        // ffPitch is a gentle fore/aft lean (positive = forward) that drives movement
+        // and tilts the body; it eases in so motion is gradual.
+        const targetLean = driveIn * P.lean;
+        this.ffPitch += (targetLean - this.ffPitch) * Math.min(4.0 * dt, 1);
 
-        const pitchAccel = 2.0;  // rad/s² for controlled pitch changes
-        if (input.up) {
-            // Arrow up: steepen track / go head-down
-            this.ffPitchRate -= pitchAccel * dt;
-            this.ffPitchRate = Math.max(this.ffPitchRate, -2.5);
-        } else if (input.down) {
-            // Arrow down: sit / backflip
-            this.ffPitchRate += pitchAccel * dt;
-            this.ffPitchRate = Math.min(this.ffPitchRate, 3.5);
-        } else {
-            // Spring toward the target position pitch with damping
-            const springK = 3.0;  // spring stiffness
-            const dampK = 2.5;    // damping
-            this.ffPitchRate += (-(this.ffPitch - targetPitch) * springK - this.ffPitchRate * dampK) * dt;
-        }
-        this.ffPitch += this.ffPitchRate * dt;
-
-        // Store current body position for UI/animation
-        this.bodyPosition = input.ffPosition;
-
-        // Track backflip rotation separately for continuous flips
-        if (this.ffPitch > Math.PI) {
-            this.ffBackflipAngle += Math.PI * 2;
-            this.ffPitch -= Math.PI * 2;
-        } else if (this.ffPitch < -Math.PI) {
-            this.ffPitch += Math.PI * 2;
-        }
-
-        // --- INSTABILITY / STABILITY GAME ---
-        // The air is never still — random drift forces continuously push the body.
-        // Player must actively correct with inputs to maintain their selected position.
-        // Stability score tracks how well they're holding position.
-
-        // Drift force: changes direction every 2-4 seconds (simulating air pockets/burbles)
+        // --- INSTABILITY / STABILITY ---
+        // The air is never still — drift nudges the body unless you stay engaged.
         this.driftTimer -= dt;
         if (this.driftTimer <= 0) {
             this.driftTimer = 2.0 + Math.random() * 2.0;
-            // New random drift direction — stronger at higher instability potential
-            const driftStr = { arch: 0.6, belly: 1.2, track: 0.8, dearch: 2.0 };
-            const str = driftStr[input.ffPosition] || 1.2;
+            const driftStr = { belly: 0.8, track: 1.0, sitfly: 1.6, headdown: 2.0 };
+            const str = driftStr[pos] || 1.0;
             this.driftPitch = (Math.random() - 0.5) * str;
             this.driftYaw = (Math.random() - 0.5) * str * 0.7;
         }
-
-        // Apply drift forces — these push you OFF position unless you correct
-        // On mobile, touching circles counts as active input (player is engaged)
         const circleActive = window._dualCircle && (window._dualCircle.leftActive || window._dualCircle.rightActive);
-        const hasInput = input.left || input.right || input.up || input.down || circleActive;
+        const hasInput = Math.abs(turnIn) > 0.04 || Math.abs(driveIn) > 0.04 || circleActive;
         if (!hasInput) {
-            // No input: drift forces build up and push body away
-            this.ffPitchRate += this.driftPitch * dt * 1.5;
-            this.ffYawRate += this.driftYaw * dt * 1.2;
-            this.instability = Math.min(1.0, this.instability + dt * 0.5);
+            this.ffYawRate += this.driftYaw * dt * 1.0;
+            this.instability = Math.min(1.0, this.instability + dt * 0.4);
         } else {
-            // Active input fights the drift — reduce instability
             this.instability = Math.max(0, this.instability - dt * 3.0);
         }
-
-        // Always apply some wobble (turbulence you can't fully eliminate)
         this.tumbleAngle += dt * (1.5 + this.instability * 2.5);
-        // Random yaw perturbation scales with instability
         if (Math.random() < (0.3 + this.instability) * dt * 2.0) {
-            this.ffYawRate += (Math.random() - 0.5) * (0.3 + this.instability * 0.6);
-        }
-        // Random pitch perturbation
-        if (Math.random() < this.instability * dt * 1.5) {
-            this.ffPitchRate += (Math.random() - 0.5) * this.instability * 0.4;
+            this.ffYawRate += (Math.random() - 0.5) * (0.2 + this.instability * 0.5);
         }
 
-        // --- STABILITY SCORE ---
-        // How close is current pitch to the target position?
-        const pitchError = Math.abs(this.ffPitch - targetPitch);
-        const yawDrift = Math.abs(this.ffYawRate); // penalize spinning
-        // Score: 100 = perfect, drops with pitch error and spin
-        const rawScore = Math.max(0, 100 - pitchError * 120 - yawDrift * 15);
-        // Smooth the score so it doesn't jitter
+        // --- STABILITY SCORE (holding the position = high score) ---
+        const yawDrift = Math.abs(this.ffYawRate);
+        const rawScore = Math.max(0, 100 - yawDrift * 18 - this.instability * 45);
         this.stabilityScore += (rawScore - this.stabilityScore) * Math.min(dt * 4, 1);
-
-        // Streak tracking — must be above 70 to build streak
         if (this.stabilityScore >= 70) {
             this.stabilityStreak += dt;
             this.stabilityAccum += dt * this.stabilityScore * 0.01;
             if (this.stabilityStreak > this.bestStreak) this.bestStreak = this.stabilityStreak;
         } else {
-            this.stabilityStreak = Math.max(0, this.stabilityStreak - dt * 2); // decays faster than it builds
-            this.lastStreakMilestone = 0; // reset milestones on break
+            this.stabilityStreak = Math.max(0, this.stabilityStreak - dt * 2);
+            this.lastStreakMilestone = 0;
         }
 
-        // ============ DRAG COMPUTATION ============
-        // Each body position has distinct aerodynamic characteristics:
-        //   de-arch: MAXIMUM drag (starfish), terminal ~100-110 mph (~47 m/s), minimal ground speed
-        //   belly:   high drag, terminal ~120 mph (~53 m/s), stable, moderate ground speed from wind
-        //   arch:    slightly more drag than belly (arched chest), terminal ~115 mph (~51 m/s), very stable
-        //   track:   reduced vertical drag, angled body deflects air → fast fall ~135 mph (~60 m/s)
-        //            PLUS significant forward drive (ground speed 50-70 mph)
-        //   head-down: minimum drag, terminal ~160+ mph (~72 m/s)
-        //   sit:     medium drag, terminal ~130 mph (~58 m/s)
-
-        // Position-based CdA (drag coefficient × frontal area)
+        // ============ DRAG / FALL RATE ============
+        // Fall rate is set purely by the selected world-class position. Belly is the
+        // reference; track falls faster (angled), sit medium, head-down fastest.
         const bellyCdA = CONFIG.DRAG.belly.Cd * CONFIG.DRAG.belly.area; // 0.56
-        const posCdA = {
-            dearch: bellyCdA * 1.35,  // ~0.756 — maximum drag, spread-eagle concave
-            belly:  bellyCdA,          // ~0.56  — standard belly-to-earth
-            arch:   bellyCdA * 1.08,   // ~0.605 — arched chest catches slightly more air
-            track:  bellyCdA * 0.65,   // ~0.364 — angled body, less frontal area
-            sit:    bellyCdA * 0.75,   // ~0.42  — upright seat
-            hd:     bellyCdA * 0.38    // ~0.213 — head-down, minimum area
-        };
+        const effectiveCdA = bellyCdA * P.cdaMult;
 
-        // Blend CdA based on body position AND pitch (for transitions)
-        const absPitch = Math.abs(this.ffPitch % (Math.PI * 2));
-        const normPitch = absPitch > Math.PI ? Math.PI * 2 - absPitch : absPitch;
-        const curPos = this.bodyPosition || 'belly';
-        let baseCdA = posCdA[curPos] || bellyCdA;
-
-        // If pitch has drifted far from target, blend toward the pitch-implied position
-        if (normPitch > Math.PI / 3) {
-            // Deep pitch = sit or head-down territory regardless of selected position
-            const t = Math.min((normPitch - Math.PI / 3) / (Math.PI / 6), 1);
-            const pitchCdA = this.ffPitch > 0 ? posCdA.sit : posCdA.hd;
-            baseCdA = baseCdA + (pitchCdA - baseCdA) * t;
-        }
-        const effectiveCdA = baseCdA;
-
-        // Forward drive: tracking position deflects airflow to create SIGNIFICANT horizontal speed
-        // A good track can cover 1:1 to 1.5:1 horizontal distance, meaning ground speeds of 50-70 mph
-        let deflectX = 0, deflectZ = 0;
-        if (curPos === 'track' || this.ffPitch < -0.2) {
-            // Track intensity based on how close to target track pitch
-            const trackPitchTarget = -0.7;
-            const pitchFromTarget = Math.abs(this.ffPitch - trackPitchTarget);
-            // Good track (close to target): up to 0.55 deflection → huge forward drive
-            // Poor track (drifted): reduced
-            const trackQuality = curPos === 'track' ? Math.max(0.2, 1.0 - pitchFromTarget * 1.5) : 0.3;
-            const trackIntensity = Math.min(Math.abs(this.ffPitch) / 0.7, 1.0);
-            deflectZ = trackIntensity * trackQuality * 0.55; // much more forward drive than before
-        } else if (curPos === 'dearch') {
-            // De-arch: minimal forward movement, just floats
-            deflectZ = 0;
-        } else if (curPos === 'arch') {
-            // Arch: very slight forward creep
-            deflectZ = 0.02;
-        }
-        // Flat turns create slight lateral drift
+        // ============ HORIZONTAL DRIVE ============
+        // Forward(+)/back(-) drive = position's inherent drive + the drive bar input,
+        // applied along the current heading (ffYaw). Turns add a touch of lateral drift.
+        let deflectZ = P.baseDrive + driveIn * P.driveAuth;
+        let deflectX = 0;
         if (Math.abs(this.ffYawRate) > 1.0) {
-            deflectX = -Math.sign(this.ffYawRate) * 0.08;
+            deflectX = -Math.sign(this.ffYawRate) * 0.05;
         }
 
         // Store for visual feedback
-        this.bodyDeflectX = deflectX + Math.sin(this.tumbleAngle * 2.3) * this.instability * 0.15;
-        this.bodyDeflectZ = deflectZ + Math.cos(this.tumbleAngle * 1.7) * this.instability * 0.15;
+        this.bodyDeflectX = deflectX + Math.sin(this.tumbleAngle * 2.3) * this.instability * 0.12;
+        this.bodyDeflectZ = deflectZ + Math.cos(this.tumbleAngle * 1.7) * this.instability * 0.12;
 
         const Fg = -m * CONFIG.GRAVITY;
         const vRelX = this.velocity.x - wind.x;
@@ -2848,8 +2851,15 @@ class PhysicsEngine {
         let speedRatio = 1.0;
         // When stalled, no speed inputs — canopy is a limp rag
         if (!isStalled) {
-            if (input.up) speedRatio = riserBoost;
-            else if (input.rearRiser) speedRatio = rearRiserFactor;
+            if (input.up) {
+                speedRatio = riserBoost; // front risers: simple press = dive
+            } else if (input.rearRiser) {
+                // Rear risers are analog now: the deeper you pull, the more the
+                // canopy slows and flattens. Blend trim → full rear-riser effect.
+                const rearAmt = (input.rearRiserAmount !== undefined && input.rearRiserAmount > 0)
+                    ? Math.max(0, Math.min(1, input.rearRiserAmount)) : 1;
+                speedRatio = 1 - rearAmt * (1 - rearRiserFactor);
+            }
             if (input.down) speedRatio = 0.75;
         }
 
@@ -3463,12 +3473,15 @@ class SceneManager {
             const geo = new THREE.RingGeometry(i === 0 ? sizes[i] - 3 : 0, sizes[i], 64);
             const mat = new THREE.MeshBasicMaterial({
                 color: colors[i], side: THREE.DoubleSide,
-                depthTest: false, depthWrite: false, transparent: true, opacity: 0.9
+                // depthTest on so the canopy & pilot correctly occlude the target rings
+                // on final approach; depthWrite off to avoid z-fighting between the
+                // stacked rings themselves.
+                depthTest: true, depthWrite: false, transparent: true, opacity: 0.9
             });
             const ring = new THREE.Mesh(geo, mat);
             ring.rotation.x = -Math.PI / 2;
             ring.position.y = 1.0 + i * 0.15;
-            ring.renderOrder = 10 + i;
+            ring.renderOrder = i;
             this.scene.add(ring);
         }
 
@@ -5504,7 +5517,7 @@ class SceneManager {
 
             // Terminal velocity varies by body position (m/s)
             // de-arch=slowest(max drag), belly=standard, arch=slightly slower, track=faster
-            const terminalByPos = { arch: 51, belly: 53, track: 60, dearch: 47, headDown: 72, sitfly: 58 };
+            const terminalByPos = { belly: 53, track: 60, sitfly: 58, headdown: 72 };
             const termV = terminalByPos[state.bodyPosition] || 53;
 
             // Start with actual current velocity for first few seconds, then converge
@@ -5787,19 +5800,30 @@ class SceneManager {
             const wobbleX = Math.sin((state.tumbleAngle || 0) * 2.3) * instab * 0.15;
             const wobbleZ = Math.cos((state.tumbleAngle || 0) * 1.7) * instab * 0.12;
 
-            // Base: body face-down = rotation.x ~= PI/2 (~72° from vertical)
-            // ffPitch modifies this: negative = tilt forward (tracking/head-down), positive = tilt back (sit/backflip)
-            const bellyBaseX = Math.PI / 2 * 0.8;  // face down orientation
-            const bodyPitchX = bellyBaseX - ffPitch; // negative pitch = more forward tilt, positive = lean back
+            // Base body orientation comes from the SELECTED world-class position:
+            //   belly  → face-down,  track → steeper head-low delta,
+            //   sit    → upright (feet down),  head-down → inverted.
+            const ffYawRate = state.ffYawRate || 0;
+            const ORIENT = {
+                belly:    Math.PI / 2 * 0.85,
+                track:    Math.PI / 2 * 1.0,
+                sitfly:   0.12,
+                headdown: Math.PI * 0.97,
+            };
+            const _bp = state.bodyPosition || 'belly';
+            let bodyPitchX = (ORIENT[_bp] !== undefined ? ORIENT[_bp] : Math.PI / 2 * 0.85);
+            // Drive bar tips the body in the direction of travel (fore/aft lean)
+            bodyPitchX += ffPitch * 0.5;
+            // Turning banks the body slightly into the turn
+            const turnRoll = -ffYawRate * 0.04;
 
             // Use YXZ order so yaw (Y) is applied first as a flat turn around world vertical,
-            // THEN pitch (X) tilts the body forward into belly-to-earth.
-            // Without this, XYZ applies pitch first, making yaw spin around the tilted axis = barrel roll.
+            // THEN pitch (X) sets the body attitude.
             this.skydiver.rotation.order = 'YXZ';
             this.skydiver.rotation.set(
                 bodyPitchX + wobbleX,
                 ffYaw,
-                wobbleZ
+                wobbleZ + turnRoll
             );
             this.canopyGroup.visible = false;
             this.suspensionLines.forEach(l => l.visible = false);
@@ -5811,72 +5835,72 @@ class SceneManager {
             let targetLLegX = 0, targetRLegX = 0, targetLLegZ = 0, targetRLegZ = 0;
             let targetLKnee = 0, targetRKnee = 0;
 
-            // Determine body position from named position + pitch for limb animation
-            const pitchNorm = ffPitch;  // negative = tracking/HD, positive = sit/backflip
+            // World-class limb form for the SELECTED position, then modulated by the
+            // turn (X) and drive (Y) inputs using correct technique for each discipline.
             const bodyPos = state.bodyPosition || 'belly';
+            const turnAmt  = Math.max(-1, Math.min(1, ffYawRate / 2.0)); // + = turning right
+            const driveAmt = Math.max(-1, Math.min(1, ffPitch / 0.3));   // + = driving forward
 
-            if (pitchNorm < -1.2) {
-                // Head-down: arms close to body, legs straight up
-                targetLArmZ = 0.3; targetRArmZ = -0.3;
-                targetLArmX = -0.2; targetRArmX = -0.2;
-                targetLForearm = 0.5; targetRForearm = 0.5;
-                targetLLegZ = 0.15; targetRLegZ = -0.15;
-                targetLLegX = -0.2; targetRLegX = -0.2;
-                targetLKnee = 0; targetRKnee = 0;
-            } else if (bodyPos === 'track' || pitchNorm < -0.3) {
-                // Tracking: arms swept back along body, legs together and straight
-                const t = Math.min(1, (-pitchNorm - 0.1) / 0.9);
-                targetLArmZ = 1.0 + t * 0.2; targetRArmZ = -1.0 - t * 0.2;
-                targetLArmX = -0.3 - t * 0.3; targetRArmX = -0.3 - t * 0.3;
+            if (bodyPos === 'headdown') {
+                // Head-down neutral: spine straight, legs ~shoulder width slightly bent,
+                // arms raised to shoulder height with a slight elbow bend.
+                targetLArmZ = -0.45; targetRArmZ = 0.45;
+                targetLArmX = -0.15; targetRArmX = -0.15;
                 targetLForearm = 0.3; targetRForearm = 0.3;
-                targetLLegZ = 0.08; targetRLegZ = -0.08; // legs close together
-                targetLLegX = -0.1; targetRLegX = -0.1;
-                targetLKnee = 0; targetRKnee = 0; // legs straight
-            } else if (pitchNorm > 1.2) {
-                // Deep sit / backflip: knees to chest, arms tucked
-                targetLArmZ = -0.3; targetRArmZ = 0.3;
-                targetLArmX = 0.8; targetRArmX = 0.8;
-                targetLForearm = 1.2; targetRForearm = 1.2;
-                targetLLegX = 0.8; targetRLegX = 0.8;
-                targetLKnee = 1.2; targetRKnee = 1.2;
-            } else if (pitchNorm > 0.4) {
-                // Sit fly: upright seated position, arms out for balance
-                const t = (pitchNorm - 0.4) / 0.8;
-                targetLArmZ = -0.6; targetRArmZ = 0.6;
-                targetLArmX = 0.2 + t * 0.3; targetRArmX = 0.2 + t * 0.3;
-                targetLForearm = -0.3 + t * 0.6; targetRForearm = -0.3 + t * 0.6;
-                targetLLegX = 0.3 + t * 0.4; targetRLegX = 0.3 + t * 0.4;
-                targetLKnee = 0.5 + t * 0.5; targetRKnee = 0.5 + t * 0.5;
-                targetLLegZ = -0.2; targetRLegZ = 0.2;
-            } else if (bodyPos === 'arch') {
-                // Hard arch: arms swept back, chest pushed forward, legs bent back & apart
-                targetLArmZ = -0.7; targetRArmZ = 0.7;
-                targetLArmX = 0.3; targetRArmX = 0.3;  // arms slightly back
-                targetLForearm = -0.5; targetRForearm = -0.5; // forearms out
-                targetLLegZ = -0.25; targetRLegZ = 0.25; // legs apart
-                targetLLegX = 0.15; targetRLegX = 0.15;  // legs slightly back
-                targetLKnee = 0.6; targetRKnee = 0.6;    // knees bent (feet toward butt)
-            } else if (bodyPos === 'dearch') {
-                // De-arch: flat/concave body, arms forward, legs straight
-                targetLArmZ = -0.4; targetRArmZ = 0.4;
-                targetLArmX = -0.15; targetRArmX = -0.15; // arms slightly forward
-                targetLForearm = -0.2; targetRForearm = -0.2;
                 targetLLegZ = -0.15; targetRLegZ = 0.15;
-                targetLLegX = -0.05; targetRLegX = -0.05; // legs slightly forward
-                targetLKnee = 0; targetRKnee = 0;         // legs straight
-            } else if (input.left || input.right) {
-                // Turning on belly: slight asymmetric arms
-                const turnDir = input.left ? -1 : 1;
-                targetLArmZ = -0.5 + turnDir * 0.3; targetRArmZ = 0.5 + turnDir * 0.3;
-                targetLArmX = 0.1 - turnDir * 0.15; targetRArmX = 0.1 + turnDir * 0.15;
-                targetLForearm = -0.3; targetRForearm = -0.3;
+                targetLLegX = -0.15; targetRLegX = -0.15;
                 targetLKnee = 0.2; targetRKnee = 0.2;
+                // Forward: push arms back, extend a leg. Backward: arms forward.
+                targetLArmX += driveAmt * 0.22; targetRArmX += driveAmt * 0.22;
+                targetLLegX += driveAmt * 0.12;
+                // Turn: arm/leg asymmetry
+                targetRArmZ += turnAmt * 0.22; targetLArmZ += turnAmt * 0.22;
+                targetRLegZ += turnAmt * 0.10;
+            } else if (bodyPos === 'sitfly') {
+                // Sit fly: hips ~90°, thighs forward, shins down (knees 90°),
+                // arms 90° out to the sides, slight elbow bend.
+                targetLArmZ = -0.95; targetRArmZ = 0.95;
+                targetLArmX = -0.05; targetRArmX = -0.05;
+                targetLForearm = -0.15; targetRForearm = -0.15;
+                targetLLegX = -1.2; targetRLegX = -1.2;
+                targetLLegZ = -0.18; targetRLegZ = 0.18;
+                targetLKnee = 1.0; targetRKnee = 1.0;
+                // Forward: straighten legs + hands down. Backward: bend legs in, arms straight.
+                targetLKnee -= driveAmt * 0.5; targetRKnee -= driveAmt * 0.5;
+                targetLLegX += driveAmt * 0.3; targetRLegX += driveAmt * 0.3;
+                targetLArmX += driveAmt * 0.25; targetRArmX += driveAmt * 0.25;
+                // Turn: present shins + arms to the turn side
+                targetRLegZ += turnAmt * 0.15; targetLLegZ += turnAmt * 0.15;
+                targetRArmX += turnAmt * 0.2; targetLArmX -= turnAmt * 0.2;
+            } else if (bodyPos === 'track') {
+                // Delta/track: de-arched flat, arms swept back along the sides,
+                // legs together and straight, shoulders rolled forward.
+                targetLArmZ = -0.25; targetRArmZ = 0.25;
+                targetLArmX = 0.5; targetRArmX = 0.5;
+                targetLForearm = 0.1; targetRForearm = 0.1;
+                targetLLegZ = -0.06; targetRLegZ = 0.06;
+                targetLLegX = 0.18; targetRLegX = 0.18;
+                targetLKnee = 0; targetRKnee = 0;
+                // Forward: sweep arms further back + extend. Turn: dip a shoulder.
+                targetLArmX += driveAmt * 0.2; targetRArmX += driveAmt * 0.2;
+                targetLLegX += driveAmt * 0.1; targetRLegX += driveAmt * 0.1;
+                targetRArmX += turnAmt * 0.2; targetLArmX -= turnAmt * 0.2;
             } else {
-                // Neutral belly: arms out at ~45°, slight arch
-                targetLArmZ = -0.5; targetRArmZ = 0.5;
-                targetLArmX = 0.1; targetRArmX = 0.1;
-                targetLForearm = -0.3; targetRForearm = -0.3;
-                targetLKnee = 0.2; targetRKnee = 0.2;
+                // Belly box (boxman): arms in a 90° box at shoulder level,
+                // legs ~shoulder width with knees ~90°, arch from the hips.
+                targetLArmZ = -0.6; targetRArmZ = 0.6;
+                targetLArmX = 0.05; targetRArmX = 0.05;
+                targetLForearm = -0.55; targetRForearm = -0.55;
+                targetLLegZ = -0.2; targetRLegZ = 0.2;
+                targetLLegX = 0.1; targetRLegX = 0.1;
+                targetLKnee = 0.45; targetRKnee = 0.45;
+                // Forward: extend legs (straighten + back). Backward: knees up, arms forward.
+                targetLKnee -= driveAmt * 0.4; targetRKnee -= driveAmt * 0.4;
+                targetLLegX += driveAmt * 0.25; targetRLegX += driveAmt * 0.25;
+                targetLArmX -= Math.min(0, driveAmt) * 0.2; targetRArmX -= Math.min(0, driveAmt) * 0.2;
+                // Turn: drop the arm on the turn side (lower a shoulder)
+                targetRArmX += turnAmt * 0.35; targetLArmX -= turnAmt * 0.1;
+                targetRLegX -= turnAmt * 0.08;
             }
 
             // Subtle joint fluidity — anatomically correct micro-movements from wind
@@ -6654,10 +6678,10 @@ class UIController {
             ffAT.style.display = ffShow;
             if (showFreefallUI) {
                 const pos = state.bodyPosition || 'belly';
-                document.getElementById('ctrl-arch').className = 'ctrl-btn' + (pos === 'arch' ? ' active' : '');
+                document.getElementById('ctrl-arch').className = 'ctrl-btn' + (pos === 'belly' ? ' active' : '');
                 document.getElementById('ctrl-track').className = 'ctrl-btn' + (pos === 'track' ? ' active' : '');
-                document.getElementById('ctrl-hd').className = 'ctrl-btn' + (input.up ? ' active' : '');
-                document.getElementById('ctrl-sit').className = 'ctrl-btn' + (input.down ? ' active' : '');
+                document.getElementById('ctrl-hd').className = 'ctrl-btn' + (pos === 'headdown' ? ' active' : '');
+                document.getElementById('ctrl-sit').className = 'ctrl-btn' + (pos === 'sitfly' ? ' active' : '');
             }
         }
 
@@ -6985,7 +7009,9 @@ class UIController {
 // ==================== MAIN APPLICATION ====================
 let sceneManager, physics, windSystem, ui, soundSystem;
 let lastTime = 0, isRunning = false, simInitialized = false;
-let input = { left: false, right: false, up: false, down: false, rearRiser: false, flare: false, deploy: false, ffPosition: 'belly', leftDepth: 0, rightDepth: 0 };
+let input = { left: false, right: false, up: false, down: false, rearRiser: false, rearRiserAmount: 0, flare: false, deploy: false, ffPosition: 'belly', leftDepth: 0, rightDepth: 0, ffTurn: 0, ffDrive: 0 };
+// Currently selected freefall discipline (set by the four position buttons)
+window._ffPosition = 'belly';
 let fpvMode = false; // first-person camera toggle
 
 function initSimulator(dzInfo) {
@@ -7328,9 +7354,11 @@ function setupInputHandlers() {
             case ' ':          input.flare = true; e.preventDefault(); break;
             case 'p': case 'P': input.deploy = true; break;
             case 'r': case 'R': input.rearRiser = true; break;
-            case 'a': case 'A': input.ffPosition = 'arch'; break;
-            case 't': case 'T': input.ffPosition = 'track'; break;
-            case 'd': case 'D': input.ffPosition = 'dearch'; break;
+            // Freefall body positions (also flipped by the on-screen buttons)
+            case 'b': case 'B': if (window.setFreefallPosition) window.setFreefallPosition('belly'); break;
+            case 't': case 'T': if (window.setFreefallPosition) window.setFreefallPosition('track'); break;
+            case 's': case 'S': if (window.setFreefallPosition) window.setFreefallPosition('sitfly'); break;
+            case 'h': case 'H': if (window.setFreefallPosition) window.setFreefallPosition('headdown'); break;
             case 'c': case 'C':
                 fpvMode = !fpvMode;
                 if (sceneManager) {
@@ -7350,9 +7378,6 @@ function setupInputHandlers() {
             case 'ArrowDown':  input.down = false; break;
             case ' ':          input.flare = false; break;
             case 'r': case 'R': input.rearRiser = false; break;
-            case 'a': case 'A': if (input.ffPosition === 'arch') input.ffPosition = 'belly'; break;
-            case 't': case 'T': if (input.ffPosition === 'track') input.ffPosition = 'belly'; break;
-            case 'd': case 'D': if (input.ffPosition === 'dearch') input.ffPosition = 'belly'; break;
         }
     });
 }
@@ -7368,98 +7393,46 @@ function setupInputHandlers() {
 // Combined positions determine body state; asymmetry creates turns.
 // The challenge: finding and holding equilibrium positions while turbulence pushes you off.
 window._dualCircle = {
-    leftVal: 0,         // -1 (bottom/belly) to +1 (top/head-down)
-    rightVal: 0,
-    leftActive: false,  // is finger touching left circle
+    leftVal: 0,         // left bar: -1 (bottom) .. +1 (top) → X-axis turn
+    rightVal: 0,        // right bar: -1 (bottom) .. +1 (top) → Y-axis drive
+    leftActive: false,  // is finger touching left bar
     rightActive: false,
     leftTouchId: null,  // touch identifier for multi-touch tracking
     rightTouchId: null,
-    // Zone thresholds for body position mapping
-    ARCH_MAX: -0.25,    // below this = arch (very stable)
-    TRACK_MIN: 0.05,    // above this = entering track zone
-    TRACK_MAX: 0.38,    // above this = leaving track into sit
-    SIT_MAX: 0.68,      // above this = head-down
-    TURN_DEAD: 0.18,    // asymmetry dead zone for turns
+};
+
+// Position metadata for the four freefall buttons
+const FF_POS_META = {
+    belly:    { name: 'BELLY',     color: '#22c55e' },
+    track:    { name: 'TRACK',     color: '#3b82f6' },
+    sitfly:   { name: 'SIT FLY',   color: '#f59e0b' },
+    headdown: { name: 'HEAD DOWN', color: '#f97316' },
 };
 
 function updateDualCircleInputs() {
     const dc = window._dualCircle;
     if (!physics || physics.phase !== 'freefall') return;
 
-    // Reset freefall inputs each frame
-    input.left = false;
-    input.right = false;
-    input.up = false;
-    input.down = false;
+    // Position comes from the four buttons; the two bars are the live axis controls.
+    input.ffPosition = window._ffPosition || 'belly';
+    // Left bar → turn (X). Top of bar = +1 = turn right; bottom = turn left.
+    input.ffTurn = dc.leftActive ? dc.leftVal : 0;
+    // Right bar → drive (Y). Top of bar = +1 = drive forward; bottom = drive back.
+    input.ffDrive = dc.rightActive ? dc.rightVal : 0;
+    // Legacy booleans unused in freefall now
+    input.left = false; input.right = false; input.up = false; input.down = false;
 
-    if (!dc.leftActive && !dc.rightActive) {
-        // No touch = belly (safe default, release = instant stability)
-        input.ffPosition = 'belly';
-        return;
-    }
-
-    // Use active circle values; inactive side defaults to 0 (center)
-    const lv = dc.leftActive ? dc.leftVal : 0;
-    const rv = dc.rightActive ? dc.rightVal : 0;
-
-    // Average determines body pitch zone, difference determines yaw
-    const avgY = (lv + rv) / 2;
-    const diffY = rv - lv;  // positive = right higher = turn right
-
-    // === BODY POSITION from average Y ===
-    // Zones create a natural progression: belly → track → sit → head-down
-    // Each zone has a "sweet spot" that the player must find and hold
-    if (avgY < dc.ARCH_MAX) {
-        // Both circles pulled low → hard arch (very stable, slow fall)
-        input.ffPosition = 'arch';
-    } else if (avgY < dc.TRACK_MIN) {
-        // Both circles near bottom-center → neutral belly
-        input.ffPosition = 'belly';
-    } else if (avgY < dc.TRACK_MAX) {
-        // Both circles at mid-low sweet spot → TRACKING
-        // This is the "skill zone" — narrow band, forward drive, must stay balanced
-        input.ffPosition = 'track';
-    } else if (avgY < dc.SIT_MAX) {
-        // Both circles at mid-high → SIT FLY
-        // Use belly as base position with pitch-up push to get sit attitude
-        input.ffPosition = 'belly';
-        input.down = true;  // pushes ffPitch positive → sit fly
-    } else {
-        // Both circles pushed to top → HEAD DOWN
-        // Track base with steep pitch push for head-down attitude
-        // Hardest to control: high turn sensitivity, fastest fall rate
-        input.ffPosition = 'track';
-        input.up = true;  // pushes ffPitch more negative → head-down
-    }
-
-    // === YAW TURNS from asymmetry ===
-    // Asymmetry = one side higher than the other = weight shift = turn
-    // In head-down, turn sensitivity doubles (reward + risk)
-    let turnDead = dc.TURN_DEAD;
-    if (avgY >= dc.SIT_MAX) turnDead *= 0.6;  // tighter dead zone in head-down
-
-    if (diffY > turnDead) {
-        input.right = true;   // right circle higher → turn right
-    } else if (diffY < -turnDead) {
-        input.left = true;    // left circle higher → turn left
-    }
-
-    // === Update visual HUD ===
+    // === HUD ===
+    const meta = FF_POS_META[input.ffPosition] || FF_POS_META.belly;
     const hudEl = document.getElementById('ff-body-hud');
     if (hudEl) {
-        let posName, posColor;
-        if (avgY < dc.ARCH_MAX) { posName = 'ARCH'; posColor = '#22c55e'; }
-        else if (avgY < dc.TRACK_MIN) { posName = 'BELLY'; posColor = '#4ade80'; }
-        else if (avgY < dc.TRACK_MAX) { posName = 'TRACK'; posColor = '#3b82f6'; }
-        else if (avgY < dc.SIT_MAX) { posName = 'SIT FLY'; posColor = '#f97316'; }
-        else { posName = 'HEAD DOWN'; posColor = '#ef4444'; }
-        const turn = input.left ? ' ◀' : (input.right ? ' ▶' : '');
+        const turn = input.ffTurn > 0.1 ? ' ▶' : (input.ffTurn < -0.1 ? ' ◀' : '');
+        const drive = input.ffDrive > 0.1 ? ' ▲' : (input.ffDrive < -0.1 ? ' ▼' : '');
         const stab = physics.stabilityScore != null ? ` ${Math.round(physics.stabilityScore)}%` : '';
-        hudEl.innerHTML = `<span style="color:${posColor}">${posName}</span>${turn}<span style="opacity:0.5">${stab}</span>`;
+        hudEl.innerHTML = `<span style="color:${meta.color}">${meta.name}</span>${turn}${drive}<span style="opacity:0.5">${stab}</span>`;
         hudEl.style.display = 'block';
     }
 
-    // === Update circle dot positions ===
     updateCircleVisuals();
 }
 
@@ -7467,46 +7440,30 @@ function updateCircleVisuals() {
     const dc = window._dualCircle;
     const leftDot = document.getElementById('ff-dot-left');
     const rightDot = document.getElementById('ff-dot-right');
-    const leftCircle = document.getElementById('ff-circle-left');
-    const rightCircle = document.getElementById('ff-circle-right');
-
-    if (leftDot && leftCircle) {
+    if (leftDot) {
         if (dc.leftActive) {
             leftDot.style.display = 'block';
-            // Map value (-1 to +1) to position within circle (bottom to top)
-            // Circle is 180px tall, dot is 32px, so travel range is 148px
             const travel = 148;
-            const yPos = (1 - dc.leftVal) / 2 * travel;  // +1 = top (0px), -1 = bottom (148px)
-            leftDot.style.top = yPos + 'px';
-        } else {
-            leftDot.style.display = 'none';
-        }
-        // Zone color on circle border
-        const avg = (dc.leftActive ? dc.leftVal : 0);
-        leftCircle.style.borderColor = getZoneColor(avg, 0.5);
+            leftDot.style.top = ((1 - dc.leftVal) / 2 * travel) + 'px';
+        } else { leftDot.style.display = 'none'; }
     }
-    if (rightDot && rightCircle) {
+    if (rightDot) {
         if (dc.rightActive) {
             rightDot.style.display = 'block';
             const travel = 148;
-            const yPos = (1 - dc.rightVal) / 2 * travel;
-            rightDot.style.top = yPos + 'px';
-        } else {
-            rightDot.style.display = 'none';
-        }
-        const avg = (dc.rightActive ? dc.rightVal : 0);
-        rightCircle.style.borderColor = getZoneColor(avg, 0.5);
+            rightDot.style.top = ((1 - dc.rightVal) / 2 * travel) + 'px';
+        } else { rightDot.style.display = 'none'; }
     }
 }
 
-function getZoneColor(val, alpha) {
-    const dc = window._dualCircle;
-    if (val < dc.ARCH_MAX) return `rgba(34,197,94,${alpha})`;
-    if (val < dc.TRACK_MIN) return `rgba(74,222,128,${alpha})`;
-    if (val < dc.TRACK_MAX) return `rgba(59,130,246,${alpha})`;
-    if (val < dc.SIT_MAX) return `rgba(249,115,22,${alpha})`;
-    return `rgba(239,68,68,${alpha})`;
-}
+// Set the active freefall position from the on-screen buttons + highlight them
+window.setFreefallPosition = function(posKey) {
+    window._ffPosition = posKey;
+    input.ffPosition = posKey;
+    document.querySelectorAll('.ff-pos-btn').forEach(b => {
+        b.classList.toggle('ff-pos-active', b.dataset.pos === posKey);
+    });
+};
 
 // ==================== MOBILE TOUCH CONTROLS ====================
 function setupTouchControls() {
@@ -7527,33 +7484,35 @@ function setupTouchControls() {
         <div id="touch-right" style="position:absolute;right:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
         <!-- Riser bars: 4 inner bars (2 per side) next to toggle bars -->
         <!-- Left side: front riser (upper) + rear riser (lower) -->
-        <div id="riser-front-left" style="position:absolute;left:94px;bottom:175px;width:44px;height:110px;
+        <!-- Front risers (blue): half the size of the rears, simple press to activate -->
+        <div id="riser-front-left" style="position:absolute;left:calc(120px + env(safe-area-inset-left,0px));bottom:218px;width:30px;height:73px;
             background:linear-gradient(to bottom,rgba(59,130,246,0.30),rgba(59,130,246,0.08));
-            border-radius:14px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
+            border-radius:12px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:9px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
-        <div id="riser-rear-left" style="position:absolute;left:94px;bottom:60px;width:44px;height:110px;
+                font-size:8px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
+        <!-- Rear risers (orange): 33% bigger, analog input level (pull deeper = more) -->
+        <div id="riser-rear-left" style="position:absolute;left:calc(106px + env(safe-area-inset-left,0px));bottom:60px;width:59px;height:146px;
             background:linear-gradient(to bottom,rgba(249,115,22,0.08),rgba(249,115,22,0.30));
-            border-radius:14px;border:2px solid rgba(249,115,22,0.5);pointer-events:auto;display:none;
+            border-radius:16px;border:2px solid rgba(249,115,22,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">REAR</span></div>
+                font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;pointer-events:none;">REAR</span></div>
         <!-- Right side: front riser (upper) + rear riser (lower) -->
-        <div id="riser-front-right" style="position:absolute;right:94px;bottom:175px;width:44px;height:110px;
+        <div id="riser-front-right" style="position:absolute;right:calc(120px + env(safe-area-inset-right,0px));bottom:218px;width:30px;height:73px;
             background:linear-gradient(to bottom,rgba(59,130,246,0.30),rgba(59,130,246,0.08));
-            border-radius:14px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
+            border-radius:12px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:9px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
-        <div id="riser-rear-right" style="position:absolute;right:94px;bottom:60px;width:44px;height:110px;
+                font-size:8px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
+        <div id="riser-rear-right" style="position:absolute;right:calc(106px + env(safe-area-inset-right,0px));bottom:60px;width:59px;height:146px;
             background:linear-gradient(to bottom,rgba(249,115,22,0.08),rgba(249,115,22,0.30));
-            border-radius:14px;border:2px solid rgba(249,115,22,0.5);pointer-events:auto;display:none;
+            border-radius:16px;border:2px solid rgba(249,115,22,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">REAR</span></div>
+                font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;pointer-events:none;">REAR</span></div>
         <!-- Canopy toggle depth bars — long stroke: slack → 1/4 → 1/2 → full brakes → flare -->
-        <div id="touch-depth-left" style="position:absolute;left:48px;bottom:60px;width:40px;height:62vh;
+        <div id="touch-depth-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));bottom:60px;width:40px;height:62vh;
             background:linear-gradient(to bottom,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.04) 12%,rgba(255,210,80,0.10) 25%,rgba(255,165,0,0.16) 50%,rgba(255,90,0,0.22) 75%,rgba(239,68,68,0.30) 100%);
             border-radius:20px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;display:none;">
             <div style="position:absolute;top:12%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
@@ -7561,7 +7520,7 @@ function setupTouchControls() {
             <div style="position:absolute;top:50%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
             <div style="position:absolute;top:75%;width:100%;height:1px;background:rgba(255,255,255,0.28);"></div>
         </div>
-        <div id="touch-depth-right" style="position:absolute;right:48px;bottom:60px;width:40px;height:62vh;
+        <div id="touch-depth-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));bottom:60px;width:40px;height:62vh;
             background:linear-gradient(to bottom,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.04) 12%,rgba(255,210,80,0.10) 25%,rgba(255,165,0,0.16) 50%,rgba(255,90,0,0.22) 75%,rgba(239,68,68,0.30) 100%);
             border-radius:20px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;display:none;">
             <div style="position:absolute;top:12%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
@@ -7569,35 +7528,36 @@ function setupTouchControls() {
             <div style="position:absolute;top:50%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
             <div style="position:absolute;top:75%;width:100%;height:1px;background:rgba(255,255,255,0.28);"></div>
         </div>
-        <div id="touch-indicator-left" style="position:absolute;left:48px;width:40px;height:8px;
+        <div id="touch-indicator-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
-        <div id="touch-indicator-right" style="position:absolute;right:48px;width:40px;height:8px;
+        <div id="touch-indicator-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));width:40px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
         <!-- Freefall dual-circle controls -->
-        <div id="ff-circle-left" style="position:absolute;left:48px;bottom:90px;width:56px;height:180px;
-            border-radius:28px;border:2px solid rgba(74,222,128,0.5);pointer-events:none;display:none;
-            background:linear-gradient(to top,rgba(34,197,94,0.12),rgba(59,130,246,0.12) 40%,rgba(249,115,22,0.12) 65%,rgba(239,68,68,0.12));
+        <!-- Freefall LEFT bar = TURN (X axis): top = right, bottom = left, center = neutral -->
+        <div id="ff-circle-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));bottom:90px;width:56px;height:180px;
+            border-radius:28px;border:2px solid rgba(96,165,250,0.5);pointer-events:none;display:none;
+            background:linear-gradient(to top,rgba(96,165,250,0.16),rgba(96,165,250,0.04) 50%,rgba(96,165,250,0.16));
             overflow:hidden;">
+            <div style="position:absolute;top:50%;width:100%;height:2px;background:rgba(255,255,255,0.35);"></div>
             <div id="ff-dot-left" style="position:absolute;left:50%;transform:translateX(-50%);
                 width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);
                 box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
-            <!-- Zone labels -->
-            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:7px;color:rgba(239,68,68,0.7);font-family:monospace;pointer-events:none;">HD</div>
-            <div style="position:absolute;top:32%;width:100%;text-align:center;font-size:7px;color:rgba(249,115,22,0.7);font-family:monospace;pointer-events:none;">SIT</div>
-            <div style="position:absolute;top:55%;width:100%;text-align:center;font-size:7px;color:rgba(59,130,246,0.7);font-family:monospace;pointer-events:none;">TRK</div>
-            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:7px;color:rgba(74,222,128,0.7);font-family:monospace;pointer-events:none;">BLY</div>
+            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:8px;color:rgba(147,197,253,0.85);font-family:monospace;pointer-events:none;">▶ R</div>
+            <div style="position:absolute;top:50%;transform:translateY(-50%);width:100%;text-align:center;font-size:7px;color:rgba(255,255,255,0.5);font-family:monospace;pointer-events:none;">TURN</div>
+            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:8px;color:rgba(147,197,253,0.85);font-family:monospace;pointer-events:none;">L ◀</div>
         </div>
-        <div id="ff-circle-right" style="position:absolute;right:48px;bottom:90px;width:56px;height:180px;
-            border-radius:28px;border:2px solid rgba(74,222,128,0.5);pointer-events:none;display:none;
-            background:linear-gradient(to top,rgba(34,197,94,0.12),rgba(59,130,246,0.12) 40%,rgba(249,115,22,0.12) 65%,rgba(239,68,68,0.12));
+        <!-- Freefall RIGHT bar = DRIVE (Y axis): top = forward, bottom = back, center = neutral -->
+        <div id="ff-circle-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));bottom:90px;width:56px;height:180px;
+            border-radius:28px;border:2px solid rgba(52,211,153,0.5);pointer-events:none;display:none;
+            background:linear-gradient(to top,rgba(52,211,153,0.16),rgba(52,211,153,0.04) 50%,rgba(52,211,153,0.16));
             overflow:hidden;">
+            <div style="position:absolute;top:50%;width:100%;height:2px;background:rgba(255,255,255,0.35);"></div>
             <div id="ff-dot-right" style="position:absolute;left:50%;transform:translateX(-50%);
                 width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);
                 box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
-            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:7px;color:rgba(239,68,68,0.7);font-family:monospace;pointer-events:none;">HD</div>
-            <div style="position:absolute;top:32%;width:100%;text-align:center;font-size:7px;color:rgba(249,115,22,0.7);font-family:monospace;pointer-events:none;">SIT</div>
-            <div style="position:absolute;top:55%;width:100%;text-align:center;font-size:7px;color:rgba(59,130,246,0.7);font-family:monospace;pointer-events:none;">TRK</div>
-            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:7px;color:rgba(74,222,128,0.7);font-family:monospace;pointer-events:none;">BLY</div>
+            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:8px;color:rgba(110,231,183,0.85);font-family:monospace;pointer-events:none;">▲ FWD</div>
+            <div style="position:absolute;top:50%;transform:translateY(-50%);width:100%;text-align:center;font-size:7px;color:rgba(255,255,255,0.5);font-family:monospace;pointer-events:none;">DRIVE</div>
+            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:8px;color:rgba(110,231,183,0.85);font-family:monospace;pointer-events:none;">BACK ▼</div>
         </div>
         <!-- Freefall body position HUD -->
         <div id="ff-body-hud" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);
@@ -7773,37 +7733,69 @@ function setupTouchControls() {
         handleSideTouch('right', null);
     });
 
-    // Riser bars — hold to activate front or rear risers
-    const riserBars = [
-        { id: 'riser-front-left', input: 'up', color: '59,130,246' },
-        { id: 'riser-front-right', input: 'up', color: '59,130,246' },
-        { id: 'riser-rear-left', input: 'rearRiser', color: '249,115,22' },
-        { id: 'riser-rear-right', input: 'rearRiser', color: '249,115,22' },
-    ];
-    const activeRiserTouches = { up: 0, rearRiser: 0 };
-    for (const bar of riserBars) {
-        const el = document.getElementById(bar.id);
+    // === FRONT RISERS — simple press to activate (binary dive input) ===
+    const frontBars = ['riser-front-left', 'riser-front-right'];
+    const activeFront = { n: 0 };
+    for (const id of frontBars) {
+        const el = document.getElementById(id);
         if (!el) continue;
         el.addEventListener('touchstart', (e) => {
-            activeRiserTouches[bar.input]++;
-            input[bar.input] = true;
-            el.style.background = `rgba(${bar.color},0.45)`;
-            el.style.borderColor = `rgba(${bar.color},1)`;
+            activeFront.n++; input.up = true;
+            el.style.background = 'rgba(59,130,246,0.45)';
+            el.style.borderColor = 'rgba(59,130,246,1)';
             e.preventDefault(); e.stopPropagation();
         }, { passive: false });
-        el.addEventListener('touchend', (e) => {
-            activeRiserTouches[bar.input] = Math.max(0, activeRiserTouches[bar.input] - 1);
-            if (activeRiserTouches[bar.input] === 0) input[bar.input] = false;
+        const releaseFront = (e) => {
+            activeFront.n = Math.max(0, activeFront.n - 1);
+            if (activeFront.n === 0) input.up = false;
             el.style.background = '';
             el.style.borderColor = '';
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+        };
+        el.addEventListener('touchend', releaseFront, { passive: false });
+        el.addEventListener('touchcancel', () => releaseFront());
+    }
+
+    // === REAR RISERS — analog: the deeper you pull, the more input (like toggles) ===
+    const rearBars = ['riser-rear-left', 'riser-rear-right'];
+    const rearAmount = { 'riser-rear-left': 0, 'riser-rear-right': 0 };
+    function syncRearRiser() {
+        const amt = Math.max(rearAmount['riser-rear-left'], rearAmount['riser-rear-right']);
+        input.rearRiserAmount = amt;
+        input.rearRiser = amt > 0.05;
+    }
+    function riserPullDepth(el, clientY) {
+        const r = el.getBoundingClientRect();
+        return Math.max(0, Math.min(1, (clientY - r.top) / r.height)); // top=0, bottom=1
+    }
+    for (const id of rearBars) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const applyRear = (clientY) => {
+            const d = riserPullDepth(el, clientY);
+            rearAmount[id] = d;
+            const pct = (d * 100).toFixed(0) + '%';
+            el.style.background = `linear-gradient(to top, rgba(249,115,22,0.55) ${pct}, rgba(249,115,22,0.06) ${pct})`;
+            el.style.borderColor = 'rgba(249,115,22,1)';
+            syncRearRiser();
+        };
+        el.addEventListener('touchstart', (e) => {
+            if (e.changedTouches[0]) applyRear(e.changedTouches[0].clientY);
             e.preventDefault(); e.stopPropagation();
         }, { passive: false });
-        el.addEventListener('touchcancel', () => {
-            activeRiserTouches[bar.input] = Math.max(0, activeRiserTouches[bar.input] - 1);
-            if (activeRiserTouches[bar.input] === 0) input[bar.input] = false;
+        el.addEventListener('touchmove', (e) => {
+            if (e.changedTouches[0]) applyRear(e.changedTouches[0].clientY);
+            e.preventDefault(); e.stopPropagation();
+        }, { passive: false });
+        const releaseRear = (e) => {
+            rearAmount[id] = 0;
             el.style.background = '';
             el.style.borderColor = '';
-        });
+            syncRearRiser();
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+        };
+        el.addEventListener('touchend', releaseRear, { passive: false });
+        el.addEventListener('touchcancel', () => releaseRear());
     }
 
     // Deploy button
@@ -7935,6 +7927,10 @@ function setupTouchControls() {
         if (ffCircleR) ffCircleR.style.display = isFreefall ? 'block' : 'none';
         if (depthL) depthL.style.display = isCanopy ? 'block' : 'none';
         if (depthR) depthR.style.display = isCanopy ? 'block' : 'none';
+        // Freefall body-position buttons (flank the PULL button)
+        document.querySelectorAll('.ff-pos-btn').forEach(b => {
+            b.style.display = isFreefall ? 'flex' : 'none';
+        });
         ['riser-front-left','riser-front-right','riser-rear-left','riser-rear-right'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = isCanopy ? 'block' : 'none';
@@ -8045,9 +8041,12 @@ window.startJump = function() {
     try {
     if (!simInitialized) { console.warn('Sim not initialized'); return; }
     if (isRunning) return;
-    // Reset FPV and body position
+    // Reset FPV and body position to the chosen starting discipline
     fpvMode = false;
-    input.ffPosition = 'belly';
+    const startPos = document.getElementById('body-pos').value || 'belly';
+    if (window.setFreefallPosition) window.setFreefallPosition(startPos);
+    else { window._ffPosition = startPos; input.ffPosition = startPos; }
+    input.ffTurn = 0; input.ffDrive = 0;
     if (window._dualCircle) {
         window._dualCircle.leftActive = false;
         window._dualCircle.rightActive = false;
@@ -8061,7 +8060,7 @@ window.startJump = function() {
     physics.reset();
     const exitAltFt = parseInt(document.getElementById('exit-alt').value);
     physics.setExitAltitude(exitAltFt);
-    physics.bodyPosition = document.getElementById('body-pos').value;
+    physics.bodyPosition = startPos;
 
     const manualOffset = parseInt(document.getElementById('exit-offset').value);
 
@@ -8297,7 +8296,8 @@ window.fetchLiveWinds = async function() {
 // Init DZ map
 initDZMap();
 
-// Restore cached settings — if DZ was saved, auto-confirm and skip selector
+// Restore cached settings — if a DZ was saved, auto-confirm and skip the selector;
+// otherwise the world map selector stays up so the user can pick anywhere on the globe.
 const hadCachedDZ = restoreSettings();
 if (hadCachedDZ && selectedDZ) {
     try {
