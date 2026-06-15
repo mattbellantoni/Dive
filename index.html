@@ -557,6 +557,7 @@
                 <option value="3stripe">3-Stripe</option>
                 <option value="center">Center Accent</option>
                 <option value="tips">Tip Accent</option>
+                <option value="usa">American Flag</option>
             </select>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
@@ -748,7 +749,7 @@
 <div id="mobile-change-dz" style="display:none !important;">&#x2190;</div>
 <div id="mobile-settings-toggle">⚙</div>
 
-<div id="version-badge">v1.76 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.77 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1310,6 +1311,16 @@ function applyCanopyColors() {
                     // Tips (0,1,7,8) = c2, rest = c1
                     c = (cellIdx <= 1 || cellIdx >= 7) ? c2 : c1;
                     break;
+                case 'usa': {
+                    // American Flag: blue tips, red & white stripes
+                    const usaRed = new THREE.Color('#BF0A30');
+                    const usaWhite = new THREE.Color('#FFFFFF');
+                    const usaBlue = new THREE.Color('#002868');
+                    // Cell map: Blue-White-Red-White-Red-White-Red-White-Blue
+                    const usaMap = [usaBlue, usaWhite, usaRed, usaWhite, usaRed, usaWhite, usaRed, usaWhite, usaBlue];
+                    c = usaMap[cellIdx] || usaRed;
+                    break;
+                }
                 default:
                     c = cellIdx % 2 === 0 ? c1 : c2;
             }
@@ -1323,7 +1334,14 @@ function applyCanopyColors() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', applyCanopyColors);
 });
-document.getElementById('canopy-pattern').addEventListener('change', applyCanopyColors);
+document.getElementById('canopy-pattern').addEventListener('change', function() {
+    // When USA pattern selected, auto-set color pickers to flag colors
+    if (this.value === 'usa') {
+        document.getElementById('canopy-color1').value = '#BF0A30';
+        document.getElementById('canopy-color2').value = '#002868';
+    }
+    applyCanopyColors();
+});
 
 // ==================== CAMERA FLIP BUTTON ====================
 // Toggles between: feet-down view (looking straight down from jumper's feet)
@@ -5816,14 +5834,14 @@ class SceneManager {
                         state.position.y + canopyYOffset,
                         state.position.z + Math.cos(state.heading) * canopyZOffset - gustLateral * Math.sin(state.heading)
                     );
-                    this.canopyGroup.rotation.set(-canopyPitch, state.heading + Math.PI + yawKick, canopyRoll);
+                    this.canopyGroup.rotation.set(canopyPitch, state.heading + Math.PI + yawKick, canopyRoll);
                 } else {
                     this.canopyGroup.position.set(
                         state.position.x + Math.sin(state.heading) * canopyZOffset,
                         state.position.y + canopyYOffset,
                         state.position.z + Math.cos(state.heading) * canopyZOffset
                     );
-                    this.canopyGroup.rotation.set(-canopyPitch, state.heading + Math.PI, canopyRoll);
+                    this.canopyGroup.rotation.set(canopyPitch, state.heading + Math.PI, canopyRoll);
                 }
 
                 // ---- STALL: group-level transforms for realistic collapse ----
@@ -7189,31 +7207,31 @@ function setupTouchControls() {
         <div id="touch-right" style="position:absolute;right:0;top:0;width:30%;height:100%;pointer-events:auto;"></div>
         <!-- Riser bars: 4 inner bars (2 per side) next to toggle bars -->
         <!-- Left side: front riser (upper) + rear riser (lower) -->
-        <div id="riser-front-left" style="position:absolute;left:92px;bottom:180px;width:24px;height:100px;
-            background:linear-gradient(to bottom,rgba(59,130,246,0.25),rgba(59,130,246,0.05));
-            border-radius:12px;border:1px solid rgba(59,130,246,0.4);pointer-events:auto;display:none;
+        <div id="riser-front-left" style="position:absolute;left:94px;bottom:175px;width:44px;height:110px;
+            background:linear-gradient(to bottom,rgba(59,130,246,0.30),rgba(59,130,246,0.08));
+            border-radius:14px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:7px;color:rgba(147,197,253,0.9);font-family:monospace;white-space:nowrap;">FRT</span></div>
-        <div id="riser-rear-left" style="position:absolute;left:92px;bottom:80px;width:24px;height:100px;
-            background:linear-gradient(to bottom,rgba(249,115,22,0.05),rgba(249,115,22,0.25));
-            border-radius:12px;border:1px solid rgba(249,115,22,0.4);pointer-events:auto;display:none;
+                font-size:9px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
+        <div id="riser-rear-left" style="position:absolute;left:94px;bottom:60px;width:44px;height:110px;
+            background:linear-gradient(to bottom,rgba(249,115,22,0.08),rgba(249,115,22,0.30));
+            border-radius:14px;border:2px solid rgba(249,115,22,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:7px;color:rgba(251,191,36,0.9);font-family:monospace;white-space:nowrap;">RER</span></div>
+                font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">REAR</span></div>
         <!-- Right side: front riser (upper) + rear riser (lower) -->
-        <div id="riser-front-right" style="position:absolute;right:92px;bottom:180px;width:24px;height:100px;
-            background:linear-gradient(to bottom,rgba(59,130,246,0.25),rgba(59,130,246,0.05));
-            border-radius:12px;border:1px solid rgba(59,130,246,0.4);pointer-events:auto;display:none;
+        <div id="riser-front-right" style="position:absolute;right:94px;bottom:175px;width:44px;height:110px;
+            background:linear-gradient(to bottom,rgba(59,130,246,0.30),rgba(59,130,246,0.08));
+            border-radius:14px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:7px;color:rgba(147,197,253,0.9);font-family:monospace;white-space:nowrap;">FRT</span></div>
-        <div id="riser-rear-right" style="position:absolute;right:92px;bottom:80px;width:24px;height:100px;
-            background:linear-gradient(to bottom,rgba(249,115,22,0.05),rgba(249,115,22,0.25));
-            border-radius:12px;border:1px solid rgba(249,115,22,0.4);pointer-events:auto;display:none;
+                font-size:9px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
+        <div id="riser-rear-right" style="position:absolute;right:94px;bottom:60px;width:44px;height:110px;
+            background:linear-gradient(to bottom,rgba(249,115,22,0.08),rgba(249,115,22,0.30));
+            border-radius:14px;border:2px solid rgba(249,115,22,0.5);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:7px;color:rgba(251,191,36,0.9);font-family:monospace;white-space:nowrap;">RER</span></div>
+                font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">REAR</span></div>
         <!-- Canopy toggle depth bars (moved inward to clear iPhone camera area) -->
         <div id="touch-depth-left" style="position:absolute;left:48px;bottom:80px;width:40px;height:200px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05),rgba(255,165,0,0.15));
