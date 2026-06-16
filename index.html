@@ -541,7 +541,7 @@
 
 <!-- LEFT PANEL — Wind -->
 <div class="panel panel-left" id="wind-panel">
-    <h3 style="cursor:pointer;user-select:none;" onclick="this.parentElement.classList.toggle('panel-collapsed')">Winds Aloft Data <span style="float:right;opacity:0.4;font-size:8px;">&#x25B2;&#x25BC;</span></h3>
+    <h3 style="cursor:pointer;user-select:none;" onclick="this.parentElement.classList.toggle('panel-collapsed')">Wind Settings <span style="float:right;opacity:0.4;font-size:8px;">&#x25B2;&#x25BC;</span></h3>
     <div class="control-group">
         <label><span>Upper (8000ft+)</span><span class="val" id="wind-upper-val">15 kts</span></label>
         <input type="range" id="wind-upper" min="0" max="50" value="15">
@@ -852,7 +852,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.81 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.82 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -870,9 +870,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.81';
+const APP_VERSION = 'v1.82';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '10:08 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '10:22 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1208,6 +1208,7 @@ window._timeOfDayMinutes = 12 * 60;
 window._cloudCover = 0.2;
 window._lightPollution = 0.3;
 window._timeUserSet = false; // becomes true once the user drags the time slider
+window._targetPos = { x: 0, z: 0 }; // landing target (draggable aim point)
 
 // ==================== SETTINGS CACHE (localStorage) ====================
 const SETTINGS_KEY = 'dive_jump_settings';
@@ -3743,6 +3744,8 @@ class SceneManager {
     }
 
     createLandingZone() {
+        // Landing target lives in a group so it can be dragged to a new aim point.
+        this.landingTargetGroup = new THREE.Group();
         const colors = [0xffffff, 0xff4444, 0xffffff, 0xff4444, 0xffff00];
         const sizes = [30, 20, 12, 6, 2];
         for (let i = 0; i < colors.length; i++) {
@@ -3758,8 +3761,11 @@ class SceneManager {
             ring.rotation.x = -Math.PI / 2;
             ring.position.y = 1.0 + i * 0.15;
             ring.renderOrder = i;
-            this.scene.add(ring);
+            this.landingTargetGroup.add(ring);
         }
+        this.landingTargetRadius = sizes[0]; // outer ring radius (for hit-testing)
+        if (window._targetPos) this.landingTargetGroup.position.set(window._targetPos.x, 0, window._targetPos.z);
+        this.scene.add(this.landingTargetGroup);
 
         // Wind direction arrow on ground
         const arrowGeo = new THREE.ConeGeometry(3, 12, 8);
@@ -3857,16 +3863,18 @@ class SceneManager {
         // Drag state
         this.exitDragging = false;
         this.exitMarkerPos = { x: 0, z: 0 };
+        this._exitPointers = new Set(); // active pointers (for pinch detection)
 
         // Raycaster for drag
         this.raycaster = new THREE.Raycaster();
         this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-        // Mouse events for dragging
+        // Pre-flight: tap, click, or drag ANYWHERE on screen to place/move the exit point
         const canvas = this.renderer.domElement;
         canvas.addEventListener('pointerdown', (e) => this._onExitPointerDown(e));
         canvas.addEventListener('pointermove', (e) => this._onExitPointerMove(e));
-        canvas.addEventListener('pointerup', () => this._onExitPointerUp());
+        canvas.addEventListener('pointerup', (e) => this._onExitPointerUp(e));
+        canvas.addEventListener('pointercancel', (e) => this._onExitPointerUp(e));
     }
 
     _getNDC(e) {
@@ -3878,21 +3886,28 @@ class SceneManager {
     }
 
     _onExitPointerDown(e) {
-        if (isRunning) return; // can't drag during flight
-        const ndc = this._getNDC(e);
-        this.raycaster.setFromCamera(ndc, this.camera);
-
-        // Check if click hits near the exit marker
-        const intersects = this.raycaster.intersectObjects(this.exitMarkerGroup.children, true);
-        if (intersects.length > 0) {
-            this.exitDragging = true;
-            this.orbitControls.enabled = false; // disable orbit while dragging
-            e.preventDefault();
+        if (isRunning) return; // can't move the exit point during flight
+        this._exitPointers.add(e.pointerId);
+        // A second finger = pinch/two-finger gesture → hand it to OrbitControls (zoom/pan)
+        if (this._exitPointers.size > 1) {
+            if (this.exitDragging) { this.exitDragging = false; this.orbitControls.enabled = !fpvMode; }
+            return;
         }
+        // On desktop only the left button places the exit point; right/middle drag still pans
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        // Tap, click, or drag anywhere on screen → place/move the exit point there
+        this.exitDragging = true;
+        this.orbitControls.enabled = false;
+        this._moveExitToPointer(e); // a tap drops the exit point immediately
+        e.preventDefault();
     }
 
     _onExitPointerMove(e) {
         if (!this.exitDragging) return;
+        this._moveExitToPointer(e);
+    }
+
+    _moveExitToPointer(e) {
         const ndc = this._getNDC(e);
         this.raycaster.setFromCamera(ndc, this.camera);
 
@@ -3928,8 +3943,9 @@ class SceneManager {
         }
     }
 
-    _onExitPointerUp() {
-        if (this.exitDragging) {
+    _onExitPointerUp(e) {
+        if (e && e.pointerId !== undefined) this._exitPointers.delete(e.pointerId);
+        if (this._exitPointers.size === 0 && this.exitDragging) {
             this.exitDragging = false;
             this.orbitControls.enabled = !fpvMode;
         }
@@ -3981,7 +3997,7 @@ class SceneManager {
                 this.orbitControls.screenSpacePanning = true;
                 this.orbitControls.enablePan = true;
                 this.orbitControls.mouseButtons = {
-                    LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE
+                    LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN
                 };
                 this.orbitControls.touches = {
                     ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN
