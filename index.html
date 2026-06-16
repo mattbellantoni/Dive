@@ -28,7 +28,7 @@
             box-shadow: 0 28px 70px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);
             -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
         }
-        #welcome-card .wc-emblem { width: 62px; height: 62px; margin: 0 auto 16px; display: block; }
+        #welcome-card .wc-logo-img { display: block; width: 80%; max-width: 300px; height: auto; margin: 0 auto 4px; }
         #welcome-card .wc-logo {
             font-size: 31px; font-weight: 800; letter-spacing: 0.4px; line-height: 1.1;
             background: linear-gradient(90deg,#60a5fa,#a78bfa); -webkit-background-clip: text;
@@ -43,8 +43,11 @@
             border-radius: 2px;
         }
         #welcome-card .wc-desc {
-            font-size: 14px; line-height: 1.65; color: #d4deec; margin: 0 auto 16px; max-width: 320px;
+            font-size: 14px; line-height: 1.6; color: #d4deec; margin: 0 auto 16px; max-width: 320px;
+            text-align: center;
         }
+        #welcome-card .wc-desc p { margin: 0 0 14px; }
+        #welcome-card .wc-desc p:last-child { margin-bottom: 0; }
         #welcome-card .wc-contact {
             font-size: 12px; line-height: 1.5; color: #8aa0bd; margin-bottom: 24px;
         }
@@ -455,23 +458,11 @@
 <!-- WELCOME / SPLASH (first visit + after updates) -->
 <div id="welcome-overlay" class="hidden">
     <div id="welcome-card">
-        <svg class="wc-emblem" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <linearGradient id="wc-grad" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stop-color="#60a5fa"/>
-                    <stop offset="1" stop-color="#a78bfa"/>
-                </linearGradient>
-            </defs>
-            <path d="M5 31 a27 23 0 0 1 54 0 q-13 -9 -27 0 q-14 -9 -27 0 z" fill="url(#wc-grad)"/>
-            <path d="M8 32 L31 50 M22 33 L31 50 M42 33 L33 50 M56 32 L33 50" stroke="#cdd9ea" stroke-width="1.3" stroke-linecap="round"/>
-            <circle cx="32" cy="52" r="3" fill="#e8eef7"/>
-        </svg>
-        <div class="wc-logo">Skydive Mobile</div>
-        <div class="wc-tag">"It's Always Safe to Jump Online"</div>
+        <img class="wc-logo-img" src="skydive-mobile-logo.png" alt="Skydive Mobile — It's Always Safe to Jump Online">
         <div class="wc-divider"></div>
         <div class="wc-desc">
-            Rehearse your next jump before you ever leave the ground. Load live winds over any
-            dropzone on earth, then fly your freefall and canopy just like the real thing.
+            <p>Skydive Mobile loads live wind data to deliver a realistic freefall and canopy-flight simulation.</p>
+            <p>Jump anytime without ever leaving the ground.</p>
         </div>
         <div class="wc-contact">
             Tap the gear to set up your jump.<br>Ideas or feedback? <a href="mailto:support@skydivemobile.com">support@skydivemobile.com</a>
@@ -683,6 +674,20 @@
             <option value="headdown">Head Down (160 mph)</option>
         </select>
     </div>
+    <hr>
+    <h3>Environment</h3>
+    <div class="control-group">
+        <label><span>Time of Day</span><span class="val" id="time-of-day-val">12:00 PM · Midday</span></label>
+        <input type="range" id="time-of-day" min="0" max="1439" step="5" value="720">
+    </div>
+    <div class="control-group">
+        <label><span>Cloud Cover</span><span class="val" id="cloud-cover-val">20%</span></label>
+        <input type="range" id="cloud-cover" min="0" max="100" step="5" value="20">
+    </div>
+    <div class="control-group">
+        <label><span>Light Pollution</span><span class="val" id="light-pollution-val">30%</span></label>
+        <input type="range" id="light-pollution" min="0" max="100" step="5" value="30">
+    </div>
     <div class="control-group" style="margin-top:8px;">
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
             <span>Landing Projection</span>
@@ -825,10 +830,6 @@
     width:50px;height:50px;border-radius:50%;background:rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.3);
     display:none;align-items:center;justify-content:center;color:#fff;font-size:22px;
     z-index:200;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">&#x1F441;</div>
-<div id="landing-proj-btn" title="Landing Projection" style="position:fixed;bottom:12px;left:calc(50% + 60px);
-    width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,0.8);border:1px solid rgba(57,255,20,0.5);
-    display:none;align-items:center;justify-content:center;color:#39ff14;font-size:20px;
-    z-index:200;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">&#x1F3AF;</div>
 
 <!-- Mobile controls -->
 <div id="mobile-exit-hint" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
@@ -851,7 +852,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.79 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.81 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -869,9 +870,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.79';
+const APP_VERSION = 'v1.81';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '2:30 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '10:08 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1133,6 +1134,81 @@ const SAVED_DZS = [
 
 let dzMap, dzMarker, selectedDZ = null;
 
+// ==================== ASTRONOMY / TIME-OF-DAY HELPERS ====================
+// Approximate solar position (good to ~0.5°). date is a JS Date (UTC instant).
+function solarPosition(date, lat, lng) {
+    const rad = Math.PI / 180, deg = 180 / Math.PI;
+    const jd = date.getTime() / 86400000 + 2440587.5;
+    const n = jd - 2451545.0; // days since J2000.0
+    const L = ((280.460 + 0.9856474 * n) % 360 + 360) % 360;          // mean longitude
+    const g = (((357.528 + 0.9856003 * n) % 360 + 360) % 360) * rad;   // mean anomaly
+    const lambda = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * rad; // ecliptic lon
+    const eps = (23.439 - 0.0000004 * n) * rad;                         // obliquity
+    const decl = Math.asin(Math.sin(eps) * Math.sin(lambda));
+    const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
+    const gmst = (((280.46061837 + 360.98564736629 * n) % 360) + 360) % 360;
+    const lst = (gmst + lng) * rad;                                     // local sidereal time
+    const H = lst - ra;                                                 // hour angle
+    const latr = lat * rad;
+    const alt = Math.asin(Math.sin(latr) * Math.sin(decl) + Math.cos(latr) * Math.cos(decl) * Math.cos(H));
+    let az = Math.atan2(-Math.sin(H), Math.tan(decl) * Math.cos(latr) - Math.sin(latr) * Math.cos(H));
+    az = ((az * deg) % 360 + 360) % 360;
+    return { altitude: alt * deg, azimuth: az };
+}
+
+// Live moon phase (illuminated fraction + name) from synodic month
+function moonInfo(date) {
+    const synodic = 29.530588853;
+    const jd = date.getTime() / 86400000 + 2440587.5;
+    let age = (jd - 2451550.1) % synodic;
+    if (age < 0) age += synodic;
+    const illum = (1 - Math.cos(2 * Math.PI * age / synodic)) / 2;
+    const names = ['New Moon','Waxing Crescent','First Quarter','Waxing Gibbous',
+                   'Full Moon','Waning Gibbous','Last Quarter','Waning Crescent'];
+    const idx = Math.floor((age / synodic) * 8 + 0.5) % 8;
+    return { age, illum, phaseName: names[idx] };
+}
+
+// Approximate timezone offset (hours east of UTC) from longitude
+function tzOffsetFromLng(lng) { return Math.round((lng || 0) / 15); }
+
+// Build a UTC Date for a given clock time (minutes-of-day, local at the DZ)
+function dzLocalToUTC(minutesOfDay, lng) {
+    const tz = tzOffsetFromLng(lng);
+    const now = new Date();
+    const ms = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)
+        + (minutesOfDay - tz * 60) * 60000;
+    return new Date(ms);
+}
+
+// Current local clock time at the DZ, in minutes-of-day
+function dzLocalNowMinutes(lng) {
+    const now = new Date();
+    let mins = now.getUTCHours() * 60 + now.getUTCMinutes() + tzOffsetFromLng(lng) * 60;
+    return ((mins % 1440) + 1440) % 1440;
+}
+
+// Friendly label for a time-of-day given the sun altitude
+function timeOfDayLabel(minutes, sunAlt) {
+    const h = Math.floor(minutes / 60), m = Math.floor(minutes % 60);
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = ((h + 11) % 12) + 1;
+    const clock = `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+    let phase;
+    if (sunAlt < -8) phase = 'Night';
+    else if (sunAlt < 0) phase = (minutes < 720) ? 'Dawn' : 'Dusk';
+    else if (sunAlt < 8) phase = (minutes < 720) ? 'Sunrise' : 'Sunset';
+    else if (sunAlt < 30) phase = (minutes < 720) ? 'Morning' : 'Evening';
+    else phase = 'Midday';
+    return `${clock} · ${phase}`;
+}
+
+// Global environment state (set from the settings sliders)
+window._timeOfDayMinutes = 12 * 60;
+window._cloudCover = 0.2;
+window._lightPollution = 0.3;
+window._timeUserSet = false; // becomes true once the user drags the time slider
+
 // ==================== SETTINGS CACHE (localStorage) ====================
 const SETTINGS_KEY = 'dive_jump_settings';
 const CACHED_SETTING_IDS = [
@@ -1142,7 +1218,8 @@ const CACHED_SETTING_IDS = [
     'wind-ground', 'wind-mid', 'wind-upper',
     'wind-ground-dir', 'wind-upper-dir', 'gust-intensity',
     'gear-helmet', 'gear-shirt', 'gear-pants',
-    'canopy-color1', 'canopy-color2', 'canopy-pattern'
+    'canopy-color1', 'canopy-color2', 'canopy-pattern',
+    'time-of-day', 'cloud-cover', 'light-pollution'
 ];
 
 function saveSettings() {
@@ -1171,6 +1248,8 @@ function restoreSettings() {
                 if (el) el.value = settings[id];
             }
         });
+        // If the user previously set a time of day, treat it as their explicit choice
+        if (settings['time-of-day'] != null) window._timeUserSet = true;
         // Restore DZ
         if (settings._dz) {
             selectedDZ = settings._dz;
@@ -1296,6 +1375,7 @@ function initDZMap() {
                 initSimulator(selectedDZ);
             }
             saveSettings();
+            setDefaultTimeForDZ(selectedDZ.lng, true);
             setTimeout(() => fetchLiveWinds(), 500);
         });
     }
@@ -1337,6 +1417,8 @@ window.confirmDZ = function() {
         initSimulator(selectedDZ);
     }
     saveSettings();
+    // A new dropzone always loads at that DZ's local time + refreshes sky/lighting
+    setDefaultTimeForDZ(selectedDZ.lng, true);
     // Auto-load live winds for the selected DZ
     setTimeout(() => fetchLiveWinds(), 500);
     // Sync settings panel DZ dropdown
@@ -2552,6 +2634,9 @@ class PhysicsEngine {
         // nothing in canopy flight happens instantly)
         this.smoothLeftBrake = 0;
         this.smoothRightBrake = 0;
+        // Smoothed riser inputs so dives/flattening develop gradually (not instant)
+        this.smoothFrontRiser = 0;
+        this.smoothRearRiser = 0;
         // Phugoid / recovery-arc oscillator: a lightly damped pitch oscillation that
         // makes the canopy surge and dive after a control release or a wind gust,
         // settling back to its trim glide ratio over ~7-10 seconds.
@@ -2847,21 +2932,23 @@ class PhysicsEngine {
         // Front risers: HP canopies gain much more speed (Student ~8%, HP ~48%)
         // Rear risers: slight slow-down but flatter glide — accuracy mode
         const riserBoost = canopyPerf.riserBoost || 1.15;
-        const rearRiserFactor = canopyPerf.rearRiserFactor || 0.88;
         let speedRatio = 1.0;
-        // When stalled, no speed inputs — canopy is a limp rag
-        if (!isStalled) {
-            if (input.up) {
-                speedRatio = riserBoost; // front risers: simple press = dive
-            } else if (input.rearRiser) {
-                // Rear risers are analog now: the deeper you pull, the more the
-                // canopy slows and flattens. Blend trim → full rear-riser effect.
-                const rearAmt = (input.rearRiserAmount !== undefined && input.rearRiserAmount > 0)
-                    ? Math.max(0, Math.min(1, input.rearRiserAmount)) : 1;
-                speedRatio = 1 - rearAmt * (1 - rearRiserFactor);
-            }
-            if (input.down) speedRatio = 0.75;
-        }
+        // ---- FRONT RISERS (smoothed press) ----
+        // The dive builds and recovers gradually — a real front-riser input takes a
+        // second or so to load the wing into a dive, and recovers over a recovery arc.
+        // It must never collapse the glide instantly.
+        const targetFront = (!isStalled && input.up) ? 1 : 0;
+        const frontEase = (targetFront > this.smoothFrontRiser) ? 1.3 : 0.9; // slower recovery
+        this.smoothFrontRiser += (targetFront - this.smoothFrontRiser) * Math.min(frontEase * dt, 1);
+        speedRatio = 1 + this.smoothFrontRiser * (riserBoost - 1);
+        // ---- REAR RISERS (smoothed analog) ---- applied to glide after the polar
+        const targetRear = (!isStalled && input.rearRiser)
+            ? ((input.rearRiserAmount != null && input.rearRiserAmount > 0) ? Math.min(1, input.rearRiserAmount) : 1)
+            : 0;
+        this.smoothRearRiser += (targetRear - this.smoothRearRiser) * Math.min(2.0 * dt, 1);
+        const rearAmt = this.smoothRearRiser;
+        // Half-brakes (both toggles partially down) still slow the wing
+        if (!isStalled && input.down) speedRatio = 0.75;
 
         if (input.flare) {
             this.flareTimer = Math.min((this.flareTimer || 0) + dt, 5.0);
@@ -2902,6 +2989,21 @@ class PhysicsEngine {
         if (turnMagnitude > 0.15) {
             const turnDescentMult = 1.0 + turnMagnitude * 0.4 + this.diveSpeed * 0.06;
             descRate *= turnDescentMult;
+        }
+
+        // ============ REAR RISER RESPONSE ============
+        // Graduated, like a soft brake on the tail of the wing:
+        //   light pull (top)    → flatter glide: a touch slower, slightly less descent
+        //   medium pull (middle)→ noticeably slower, glide near its flattest
+        //   heavy pull (bottom) → angle of attack climbs toward a stall — speed bleeds
+        //                          and descent rises (the wing starts to mush)
+        let rearSpeedMult = 1.0;
+        if (rearAmt > 0.001) {
+            rearSpeedMult = 1 - rearAmt * 0.45;                 // up to ~45% slower
+            let rearDescMult;
+            if (rearAmt <= 0.5) rearDescMult = 1 - rearAmt * 0.5;       // 1.0 → 0.75 (flatter)
+            else rearDescMult = 0.75 + (rearAmt - 0.5) * 2.4;            // 0.75 → ~1.95 (toward stall)
+            descRate *= rearDescMult;
         }
 
         // ============ LOW TURN PENALTY (hook turn danger) ============
@@ -2998,6 +3100,9 @@ class PhysicsEngine {
             finalFwdSpeed *= (1 - this.phugoid * 0.12); // dive speeds up, float bleeds speed
         }
 
+        // Rear-riser slowdown applies to the final forward speed
+        finalFwdSpeed *= rearSpeedMult;
+
         // ============ VELOCITY COMPUTATION ============
         // Heading = compass bearing: 0=N(+Z), PI/2=E(+X), PI=S(-Z), 3PI/2=W(-X)
         // Forward direction = (sin(heading), 0, cos(heading))
@@ -3033,6 +3138,8 @@ class PhysicsEngine {
 // ==================== SCENE MANAGER ====================
 class SceneManager {
     constructor(dzInfo) {
+        this.dzInfo = dzInfo || { lat: 0, lng: 0, elevation: 0 };
+        this.envBright = 1;
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 50000);
         this.renderer = new THREE.WebGLRenderer({ antialias: !window.isMobileDevice });
@@ -3055,6 +3162,9 @@ class SceneManager {
         this.createClouds();
         this.createLandingPredictor();
         this.createExitMarker();
+
+        // Apply the initial time-of-day lighting once the scene is built
+        try { this.applyTimeOfDay(); } catch (e) { console.error('time-of-day init', e); }
 
         this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
         this.orbitControls.enabled = true;
@@ -3109,6 +3219,8 @@ class SceneManager {
     }
 
     loadDZTextures(lat, lng, elevation) {
+        this.dzInfo = { lat, lng, elevation };
+        try { this.applyTimeOfDay(); } catch (e) {}
         const overlay = document.getElementById('loading-overlay');
         overlay.classList.add('visible');
         loadSatelliteTexture(lat, lng, (textures) => {
@@ -3121,6 +3233,7 @@ class SceneManager {
             if (this.groundWide.material.map) this.groundWide.material.map.dispose();
             this.groundWide.material.map = wideTex;
             this.groundWide.material.color.set(0xffffff);
+            this.groundWide.material.userData.albedo = new THREE.Color(0xffffff);
             this.groundWide.material.needsUpdate = true;
             console.log('Satellite wide texture loaded');
 
@@ -3133,9 +3246,12 @@ class SceneManager {
             if (this.groundDetail.material.map) this.groundDetail.material.map.dispose();
             this.groundDetail.material.map = detailTex;
             this.groundDetail.material.color.set(0xffffff);
+            this.groundDetail.material.userData.albedo = new THREE.Color(0xffffff);
             this.groundDetail.material.transparent = true;
             this.groundDetail.material.opacity = 0;
             this.groundDetail.material.needsUpdate = true;
+            // Re-apply the current time-of-day tint over the fresh white textures
+            if (this.applyGroundTint) this.applyGroundTint();
 
             overlay.classList.remove('visible');
 
@@ -3178,10 +3294,166 @@ class SceneManager {
     }
 
     setupLights() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-        dir.position.set(100, 200, 50);
-        this.scene.add(dir);
+        this.ambLight = new THREE.AmbientLight(0xffffff, 0.7);
+        this.scene.add(this.ambLight);
+        this.dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        this.dirLight.position.set(100, 200, 50);
+        this.scene.add(this.dirLight);
+        // Cool fill light that stands in for the moon at night
+        this.moonLight = new THREE.DirectionalLight(0xbcd0ff, 0.0);
+        this.moonLight.position.set(-100, 200, -50);
+        this.scene.add(this.moonLight);
+        // Build night sky elements (stars + moon disc)
+        this.createCelestial();
+    }
+
+    createCelestial() {
+        // ---- STARFIELD ---- points scattered on a large sphere (inside the sky dome)
+        const starCount = window.isMobileDevice ? 1200 : 2500;
+        const positions = new Float32Array(starCount * 3);
+        const R = 7600;
+        for (let i = 0; i < starCount; i++) {
+            // Upper hemisphere mostly (stars overhead)
+            const u = Math.random(), v = Math.random() * 0.85 + 0.02;
+            const theta = u * Math.PI * 2;
+            const phi = Math.acos(1 - v);      // bias toward zenith
+            const x = R * Math.sin(phi) * Math.cos(theta);
+            const y = R * Math.cos(phi);        // y up
+            const z = R * Math.sin(phi) * Math.sin(theta);
+            positions[i*3] = x; positions[i*3+1] = Math.abs(y); positions[i*3+2] = z;
+        }
+        const starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        const starMat = new THREE.PointsMaterial({
+            color: 0xffffff, size: 18, sizeAttenuation: true,
+            transparent: true, opacity: 0, depthWrite: false, fog: false
+        });
+        this.starfield = new THREE.Points(starGeo, starMat);
+        this.starfield.visible = false;
+        this.scene.add(this.starfield);
+
+        // ---- MOON DISC ---- simple bright sphere placed far in the sky
+        const moonGeo = new THREE.SphereGeometry(140, 16, 16);
+        const moonMat = new THREE.MeshBasicMaterial({ color: 0xf2f4ff, transparent: true, opacity: 0, fog: false });
+        this.moonMesh = new THREE.Mesh(moonGeo, moonMat);
+        this.moonMesh.visible = false;
+        this.scene.add(this.moonMesh);
+    }
+
+    applyGroundTint() {
+        const b = this.envBright != null ? this.envBright : 1;
+        const tint = (mesh) => {
+            if (!mesh || !mesh.material) return;
+            const a = mesh.material.userData.albedo || (mesh.material.userData.albedo = mesh.material.color.clone());
+            mesh.material.color.copy(a).multiplyScalar(b);
+        };
+        tint(this.groundWide);
+        tint(this.groundDetail);
+        tint(this.outerGround);
+    }
+
+    // Re-compute sky, sun, moon, stars and lighting from the chosen time of day,
+    // cloud cover and light pollution. Static per jump — called on changes only.
+    applyTimeOfDay() {
+        if (!this.skyMesh) return;
+        const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+        const lat = this.dzInfo ? this.dzInfo.lat : 0;
+        const lng = this.dzInfo ? this.dzInfo.lng : 0;
+        const mins = (window._timeOfDayMinutes != null) ? window._timeOfDayMinutes : 720;
+        const cloud = clamp(window._cloudCover != null ? window._cloudCover : 0.2, 0, 1);
+        const lp = clamp(window._lightPollution != null ? window._lightPollution : 0.3, 0, 1);
+
+        const date = dzLocalToUTC(mins, lng);
+        const sun = solarPosition(date, lat, lng);
+        const moon = moonInfo(new Date());
+        this._sun = sun; this._moon = moon;
+        const alt = sun.altitude;
+
+        // Day/night factors
+        const day = clamp((alt + 6) / 12, 0, 1);   // 0 night → 1 full day
+        const darkness = 1 - day;
+
+        // ---- SKY GRADIENT (keyframed by sun altitude) ----
+        const dayTop = new THREE.Color(0x2a6fd0),  dayBot  = new THREE.Color(0xbfdcff);
+        const goldTop = new THREE.Color(0x203a66), goldBot = new THREE.Color(0xff8a3c);
+        const nightTop = new THREE.Color(0x03060f), nightBot = new THREE.Color(0x0a1530);
+        let top, bot;
+        if (alt > 6) {
+            const t = clamp((alt - 6) / 10, 0, 1);
+            top = goldTop.clone().lerp(dayTop, t); bot = goldBot.clone().lerp(dayBot, t);
+        } else if (alt > -8) {
+            const t = clamp((alt + 8) / 14, 0, 1);
+            top = nightTop.clone().lerp(goldTop, t); bot = nightBot.clone().lerp(goldBot, t);
+        } else {
+            top = nightTop.clone(); bot = nightBot.clone();
+        }
+        // Light pollution: warm orange glow on the night horizon
+        if (darkness > 0) bot.lerp(new THREE.Color(0x3a2410), lp * darkness * 0.6);
+        // Cloud cover: gray + flatten
+        const gray = new THREE.Color(0x9aa6b4);
+        top.lerp(gray, cloud * 0.5); bot.lerp(gray, cloud * 0.45);
+
+        this.skyMesh.material.uniforms.topColor.value.copy(top);
+        this.skyMesh.material.uniforms.bottomColor.value.copy(bot);
+        if (this.scene.fog) this.scene.fog.color.copy(bot);
+
+        // ---- SUN DIRECTIONAL LIGHT ----
+        const azr = sun.azimuth * Math.PI / 180, altr = alt * Math.PI / 180;
+        const sx = Math.cos(altr) * Math.sin(azr);
+        const sy = Math.sin(altr);
+        const sz = Math.cos(altr) * Math.cos(azr);
+        if (this.dirLight) {
+            this.dirLight.position.set(sx * 2000, Math.max(sy, 0.02) * 2000, sz * 2000);
+            let sunInt = clamp((alt + 1) / 10, 0, 1) * 1.05 * (1 - cloud * 0.7);
+            this.dirLight.intensity = sunInt;
+            const warm = new THREE.Color(0xffb066), white = new THREE.Color(0xfff6e8);
+            this.dirLight.color.copy(warm).lerp(white, clamp(alt / 15, 0, 1));
+        }
+
+        // ---- AMBIENT ----
+        if (this.ambLight) {
+            let amb = (0.18 + day * 0.5 + moon.illum * darkness * 0.12) * (1 - cloud * 0.25);
+            this.ambLight.intensity = amb;
+            this.ambLight.color.copy(new THREE.Color(0x32405e)).lerp(new THREE.Color(0xbfd4ff), day);
+        }
+
+        // ---- MOONLIGHT (cool night fill) + MOON DISC ----
+        // Crude position: roughly opposite the sun, lifted above the horizon at night.
+        const moonUp = clamp(0.15 + darkness * 0.6, 0, 1);
+        const mx = -sx, mz = -sz, my = moonUp;
+        if (this.moonLight) {
+            this.moonLight.intensity = moon.illum * darkness * 0.5 * (1 - cloud * 0.6);
+            this.moonLight.position.set(mx * 2000, my * 2000, mz * 2000);
+        }
+        if (this.moonMesh) {
+            const moonVis = darkness * (1 - cloud * 0.8);
+            this.moonMesh.material.opacity = clamp(0.3 + moon.illum * 0.7, 0, 1) * clamp(moonVis, 0, 1);
+            this.moonMesh.visible = moonVis > 0.03;
+            const md = 6500;
+            this.moonMesh.position.set(mx * md, Math.max(0.08, my) * md, mz * md);
+        }
+
+        // ---- STARS ----
+        if (this.starfield) {
+            const vis = darkness * (1 - cloud * 0.85) * (1 - lp * 0.5);
+            this.starfield.material.opacity = clamp(vis, 0, 1);
+            this.starfield.visible = vis > 0.02;
+        }
+
+        // ---- GROUND BRIGHTNESS ----
+        this.envBright = 0.16 + day * 0.84 + moon.illum * darkness * 0.06;
+        this.envBright = clamp(this.envBright * (1 - cloud * 0.15), 0.12, 1);
+        this.applyGroundTint();
+
+        // ---- CLOUD SPRITE TINT (darken at night) ----
+        if (this.clouds) {
+            const cb = clamp(0.25 + day * 0.75 + moon.illum * darkness * 0.1, 0.18, 1);
+            this._cloudTint = cb;
+            for (const c of this.clouds) {
+                if (!c.group) continue;
+                c.group.children.forEach(s => { if (s.material && s.material.color) s.material.color.setScalar(cb); });
+            }
+        }
     }
 
     createTerrain() {
@@ -3193,6 +3465,7 @@ class SceneManager {
             color: 0x4a8c3f,
             polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2
         });
+        wideMat.userData.albedo = new THREE.Color(0x4a8c3f);
         this.groundWide = new THREE.Mesh(wideGeo, wideMat);
         this.groundWide.rotation.x = -Math.PI / 2;
         this.groundWide.position.y = -0.5;
@@ -3208,6 +3481,7 @@ class SceneManager {
         const detailMat = new THREE.MeshBasicMaterial({
             color: 0x4a8c3f, transparent: true, opacity: 0
         });
+        detailMat.userData.albedo = new THREE.Color(0x4a8c3f);
         this.groundDetail = new THREE.Mesh(detailGeo, detailMat);
         this.groundDetail.rotation.x = -Math.PI / 2;
         this.groundDetail.position.y = 0.1;
@@ -3222,11 +3496,13 @@ class SceneManager {
             color: 0x3a7c2f,
             polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4
         });
+        outerMat.userData.albedo = new THREE.Color(0x3a7c2f);
         const outer = new THREE.Mesh(outerGeo, outerMat);
         outer.rotation.x = -Math.PI / 2;
         outer.position.y = -2;
         outer.renderOrder = -1;
         this.scene.add(outer);
+        this.outerGround = outer;
 
         return this.groundWide;
     }
@@ -5061,6 +5337,10 @@ class SceneManager {
                 cloud.baseY = 600 + Math.random() * 1800;
                 cloud.group.position.y = cloud.baseY;
                 cloud.bobPhase = Math.random() * Math.PI * 2;
+                // Keep recycled clouds matched to the current time-of-day brightness
+                if (this._cloudTint != null) {
+                    cloud.group.children.forEach(s => { if (s.material && s.material.color) s.material.color.setScalar(this._cloudTint); });
+                }
             }
         }
     }
@@ -5806,7 +6086,7 @@ class SceneManager {
             const ffYawRate = state.ffYawRate || 0;
             const ORIENT = {
                 belly:    Math.PI / 2 * 0.85,
-                track:    Math.PI / 2 * 1.0,
+                track:    Math.PI / 2 * 0.92,  // flat planing track — only slightly head-low
                 sitfly:   0.12,
                 headdown: Math.PI * 0.97,
             };
@@ -5873,18 +6153,20 @@ class SceneManager {
                 targetRLegZ += turnAmt * 0.15; targetLLegZ += turnAmt * 0.15;
                 targetRArmX += turnAmt * 0.2; targetLArmX -= turnAmt * 0.2;
             } else if (bodyPos === 'track') {
-                // Delta/track: de-arched flat, arms swept back along the sides,
-                // legs together and straight, shoulders rolled forward.
-                targetLArmZ = -0.25; targetRArmZ = 0.25;
-                targetLArmX = 0.5; targetRArmX = 0.5;
-                targetLForearm = 0.1; targetRForearm = 0.1;
-                targetLLegZ = -0.06; targetRLegZ = 0.06;
-                targetLLegX = 0.18; targetRLegX = 0.18;
-                targetLKnee = 0; targetRKnee = 0;
-                // Forward: sweep arms further back + extend. Turn: dip a shoulder.
-                targetLArmX += driveAmt * 0.2; targetRArmX += driveAmt * 0.2;
-                targetLLegX += driveAmt * 0.1; targetRLegX += driveAmt * 0.1;
-                targetRArmX += turnAmt * 0.2; targetLArmX -= turnAmt * 0.2;
+                // World-class flat track: shoulders rolled forward, arms straight and
+                // held out along the sides (palms down) to deflect air, legs straight
+                // and shoulder-width pressing DOWN into the wind, with a slight
+                // de-arch (belly tucked up) so the body planes flat on the airflow.
+                targetLArmZ = -0.5;  targetRArmZ = 0.5;    // arms out to the sides
+                targetLArmX = 0.32;  targetRArmX = 0.32;   // straight, swept slightly back
+                targetLForearm = 0.05; targetRForearm = 0.05; // extended (palms down)
+                targetLLegZ = -0.13; targetRLegZ = 0.13;   // shoulder-width
+                targetLLegX = 0.30;  targetRLegX = 0.30;   // straight, pressing down/back
+                targetLKnee = 0; targetRKnee = 0;          // legs straight, toes pointed
+                // Drive bar deepens the track; turn dips one shoulder/arm.
+                targetLArmX += driveAmt * 0.14; targetRArmX += driveAmt * 0.14;
+                targetLLegX += driveAmt * 0.10; targetRLegX += driveAmt * 0.10;
+                targetRArmX += turnAmt * 0.20; targetLArmX -= turnAmt * 0.20;
             } else {
                 // Belly box (boxman): arms in a 90° box at shoulder level,
                 // legs ~shoulder width with knees ~90°, arch from the hips.
@@ -7512,7 +7794,7 @@ function setupTouchControls() {
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
                 font-size:9px;color:rgba(251,191,36,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;pointer-events:none;">REAR</span></div>
         <!-- Canopy toggle depth bars — long stroke: slack → 1/4 → 1/2 → full brakes → flare -->
-        <div id="touch-depth-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));bottom:60px;width:40px;height:62vh;
+        <div id="touch-depth-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));bottom:60px;width:59px;height:62vh;
             background:linear-gradient(to bottom,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.04) 12%,rgba(255,210,80,0.10) 25%,rgba(255,165,0,0.16) 50%,rgba(255,90,0,0.22) 75%,rgba(239,68,68,0.30) 100%);
             border-radius:20px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;display:none;">
             <div style="position:absolute;top:12%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
@@ -7520,7 +7802,7 @@ function setupTouchControls() {
             <div style="position:absolute;top:50%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
             <div style="position:absolute;top:75%;width:100%;height:1px;background:rgba(255,255,255,0.28);"></div>
         </div>
-        <div id="touch-depth-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));bottom:60px;width:40px;height:62vh;
+        <div id="touch-depth-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));bottom:60px;width:59px;height:62vh;
             background:linear-gradient(to bottom,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.04) 12%,rgba(255,210,80,0.10) 25%,rgba(255,165,0,0.16) 50%,rgba(255,90,0,0.22) 75%,rgba(239,68,68,0.30) 100%);
             border-radius:20px;border:1px solid rgba(255,255,255,0.12);pointer-events:none;display:none;">
             <div style="position:absolute;top:12%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
@@ -7528,9 +7810,9 @@ function setupTouchControls() {
             <div style="position:absolute;top:50%;width:100%;height:1px;background:rgba(255,255,255,0.18);"></div>
             <div style="position:absolute;top:75%;width:100%;height:1px;background:rgba(255,255,255,0.28);"></div>
         </div>
-        <div id="touch-indicator-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));width:40px;height:8px;
+        <div id="touch-indicator-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));width:59px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
-        <div id="touch-indicator-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));width:40px;height:8px;
+        <div id="touch-indicator-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));width:59px;height:8px;
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
         <!-- Freefall dual-circle controls -->
         <!-- Freefall LEFT bar = TURN (X axis): top = right, bottom = left, center = neutral -->
@@ -7977,6 +8259,13 @@ function setupUIControls() {
         const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
         document.getElementById('exit-dir-val').textContent = `${val}° (${dirs[Math.round(val/22.5) % 16]})`;
     });
+    // Environment sliders (time of day, cloud cover, light pollution)
+    const timeEl = document.getElementById('time-of-day');
+    if (timeEl) timeEl.addEventListener('input', () => { window._timeUserSet = true; updateEnvironmentFromUI(); saveSettings(); });
+    ['cloud-cover','light-pollution'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => { updateEnvironmentFromUI(); saveSettings(); });
+    });
     document.getElementById('canopy-model').addEventListener('change', onCanopyModelChange);
     document.getElementById('canopy-opacity').addEventListener('input', () => {
         const val = parseInt(document.getElementById('canopy-opacity').value);
@@ -8024,6 +8313,42 @@ function updateWindFromUI() {
     document.getElementById('gust-val').textContent = gust > 0 ? `\u00B1${gust} kts` : 'Off';
 
     if (windSystem) windSystem.setFromUI(ground, mid, upper, groundDir, upperDir, gust);
+}
+
+function updateEnvironmentFromUI() {
+    const tEl = document.getElementById('time-of-day');
+    const cEl = document.getElementById('cloud-cover');
+    const lEl = document.getElementById('light-pollution');
+    if (!tEl) return;
+    const t = parseInt(tEl.value);
+    const cc = cEl ? parseInt(cEl.value) : 20;
+    const lp = lEl ? parseInt(lEl.value) : 30;
+    window._timeOfDayMinutes = t;
+    window._cloudCover = cc / 100;
+    window._lightPollution = lp / 100;
+    // Labels (use the selected DZ to compute sun altitude for the phase name)
+    const lat = selectedDZ ? selectedDZ.lat : 0;
+    const lng = selectedDZ ? selectedDZ.lng : 0;
+    let sunAlt = 0;
+    try { sunAlt = solarPosition(dzLocalToUTC(t, lng), lat, lng).altitude; } catch (e) {}
+    document.getElementById('time-of-day-val').textContent = timeOfDayLabel(t, sunAlt);
+    if (cEl) document.getElementById('cloud-cover-val').textContent = cc + '%';
+    if (lEl) document.getElementById('light-pollution-val').textContent = lp + '%';
+    if (sceneManager) { try { sceneManager.applyTimeOfDay(); } catch (e) {} }
+}
+
+// Set the time-of-day from the DZ's current local time.
+//  • force = true  → always snap to local time (used when a NEW dropzone is chosen)
+//  • force = false → only set local time if the user hasn't picked a time (boot restore)
+function setDefaultTimeForDZ(lng, force) {
+    if (!force && window._timeUserSet) { updateEnvironmentFromUI(); return; }
+    const mins = dzLocalNowMinutes(lng);
+    window._timeOfDayMinutes = mins;
+    window._timeUserSet = false; // back to auto until the user drags the slider again
+    const el = document.getElementById('time-of-day');
+    if (el) el.value = mins;
+    updateEnvironmentFromUI();
+    saveSettings();
 }
 
 function updateJumpFromUI() {
@@ -8311,6 +8636,7 @@ if (hadCachedDZ && selectedDZ) {
                 updateJumpFromUI();
                 updateCanopyDisplay();
                 applyGearColors();
+                setDefaultTimeForDZ(selectedDZ.lng); // restores saved time or DZ-local default
                 setTimeout(() => applyCanopyColors(), 500); // delay for canopy mesh to init
                 fetchLiveWinds();
             } catch(e) { console.error('Settings restore error:', e); }
