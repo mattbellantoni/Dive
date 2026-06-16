@@ -654,9 +654,10 @@
                 <option value="usa">American Flag</option>
             </select>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <label style="font-size:9px;display:flex;align-items:center;gap:3px;">Color 1 <input type="color" id="canopy-color1" value="#F28C18" style="width:24px;height:20px;border:none;padding:0;cursor:pointer;"></label>
             <label style="font-size:9px;display:flex;align-items:center;gap:3px;">Color 2 <input type="color" id="canopy-color2" value="#8CD910" style="width:24px;height:20px;border:none;padding:0;cursor:pointer;"></label>
+            <label style="font-size:9px;display:flex;align-items:center;gap:3px;">Pilot Chute <input type="color" id="pilot-chute-color" value="#FF6600" style="width:24px;height:20px;border:none;padding:0;cursor:pointer;"></label>
         </div>
     </div>
     <hr>
@@ -869,7 +870,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.92 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.93 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -887,9 +888,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.92';
+const APP_VERSION = 'v1.93';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:22 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:28 AM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1257,7 +1258,7 @@ const CACHED_SETTING_IDS = [
     'wind-ground', 'wind-mid', 'wind-upper',
     'wind-ground-dir', 'wind-upper-dir', 'gust-intensity',
     'gear-helmet', 'gear-shirt', 'gear-pants',
-    'canopy-color1', 'canopy-color2', 'canopy-pattern',
+    'canopy-color1', 'canopy-color2', 'canopy-pattern', 'pilot-chute-color',
     // NOTE: 'time-of-day' is intentionally NOT cached — it always loads to the
     // dropzone's real local time on each visit. Cloud/light pollution persist.
     'cloud-cover', 'light-pollution'
@@ -1710,18 +1711,20 @@ function applyCanopyColors() {
         teColors.needsUpdate = true;
     }
 
-    // Pilot chute: the in-flight (collapsed) PC reads white on the American flag rig,
-    // otherwise the default bright orange.
+    // Pilot chute: user-selectable color (defaults bright orange). The in-flight
+    // (collapsed) PC and the deployment PC both take this color.
+    const pcEl = document.getElementById('pilot-chute-color');
+    const pcHex = pcEl ? pcEl.value : '#FF6600';
     if (sceneManager.collapsedPilotChute && sceneManager.collapsedPilotChute.material) {
-        sceneManager.collapsedPilotChute.material.color.set(pattern === 'usa' ? 0xffffff : 0xff6600);
+        sceneManager.collapsedPilotChute.material.color.set(pcHex);
     }
     if (sceneManager.pilotChute && sceneManager.pilotChute.material) {
-        sceneManager.pilotChute.material.color.set(pattern === 'usa' ? 0xffffff : 0xffffff);
+        sceneManager.pilotChute.material.color.set(pcHex);
     }
 
     saveSettings();
 }
-['canopy-color1', 'canopy-color2'].forEach(id => {
+['canopy-color1', 'canopy-color2', 'pilot-chute-color'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', applyCanopyColors);
 });
@@ -5591,13 +5594,14 @@ class SceneManager {
         // On a real rig, the collapsed PC trails behind the canopy's trailing edge,
         // connected by a bridle through the center cells to the d-bag on top.
         // Real PCs are typically bright (white, orange, or neon) and ~28-32" diameter collapsed.
-        const collapsedPCMat = new THREE.MeshLambertMaterial({ color: 0xff6600, transparent: true, opacity: 0.9 });
-        const collapsedPCGeo = new THREE.SphereGeometry(0.45, 8, 6);
-        collapsedPCGeo.scale(1.2, 0.4, 1.2); // flattened/collapsed — wider pancake shape
+        const collapsedPCMat = new THREE.MeshLambertMaterial({ color: 0xff6600 });
+        const collapsedPCGeo = new THREE.SphereGeometry(0.85, 10, 8);
+        collapsedPCGeo.scale(1.2, 0.55, 1.2); // flattened/collapsed — wider pancake shape
         this.collapsedPilotChute = new THREE.Mesh(collapsedPCGeo, collapsedPCMat);
+        this.collapsedPilotChute.renderOrder = 6;
         this.collapsedPilotChute.visible = false;
         // Trails behind and below the trailing edge (TE is at ~z=3-4 in canopy coords)
-        this.collapsedPilotChute.position.set(0, -0.5, 5.5);
+        this.collapsedPilotChute.position.set(0, -1.6, 6.2);
         this.canopyGroup.add(this.collapsedPilotChute);
 
         // Bridle line from d-bag (top of canopy) through TE to collapsed pilot chute
@@ -5882,9 +5886,10 @@ class SceneManager {
                 pcY = -0.5 - pcStallT * 3;  // falls down
                 pcX = Math.sin(flutterTime * 2.5) * pcStallT * 0.5; // chaotic lateral
             } else {
-                // Normal flight: trails behind TE with flutter from relative wind
-                pcZ = 5.5 + Math.sin(flutterTime * 2) * 0.5;
-                pcY = -0.5 + Math.sin(flutterTime * 3.5) * 0.3;
+                // Normal flight: trails behind + below the TE in clear air (visible),
+                // fluttering in the relative wind.
+                pcZ = 6.2 + Math.sin(flutterTime * 2) * 0.5;
+                pcY = -1.6 + Math.sin(flutterTime * 3.5) * 0.3;
                 pcX = Math.sin(flutterTime * 1.7) * 0.2;
             }
             this.collapsedPilotChute.position.set(pcX, pcY, pcZ);
