@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- Full-screen, app-like behavior on mobile (esp. when added to home screen) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Skydive Mobile">
+    <meta name="theme-color" content="#05080f">
     <title>Dive — Skydiving Wind Simulator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -856,7 +862,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.90 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.91 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -874,9 +880,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.90';
+const APP_VERSION = 'v1.91';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '10:58 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:04 AM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -931,34 +937,19 @@ const APP_UPDATED_TIME = '10:58 AM ET'; // time of last update (US Eastern)
         } catch (e) {}
     }
 
-    // Enter fullscreen on the first user gesture (most reliable path).
-    function onFirstGesture() {
-        enterFS();
-        window.removeEventListener('pointerdown', onFirstGesture);
-        window.removeEventListener('touchend', onFirstGesture);
-        window.removeEventListener('keydown', onFirstGesture);
-    }
-    window.addEventListener('pointerdown', onFirstGesture, { once: false });
-    window.addEventListener('touchend', onFirstGesture, { once: false });
-    window.addEventListener('keydown', onFirstGesture, { once: false });
+    // Persistently keep the app fullscreen: re-enter on ANY user gesture whenever we're
+    // not already fullscreen (enterFS no-ops if we already are). Browsers require a
+    // gesture to enter fullscreen, so this is the most forceful path available.
+    function keepFS() { enterFS(); }
+    window.addEventListener('pointerdown', keepFS);
+    window.addEventListener('touchend', keepFS);
+    window.addEventListener('keydown', keepFS);
 
-    // Best-effort attempt a few seconds in (succeeds if a gesture has occurred).
-    setTimeout(enterFS, 4000);
+    // Best-effort attempt shortly after load (succeeds if a gesture has occurred).
+    setTimeout(enterFS, 1200);
 
-    // Reveal the browser bar each time the device rotates from portrait to landscape.
-    let wasPortrait = window.matchMedia('(orientation: portrait)').matches;
-    function onOrientation() {
-        const isPortrait = window.matchMedia('(orientation: portrait)').matches;
-        if (wasPortrait && !isPortrait) {
-            // portrait -> landscape: show the browser chrome again
-            exitFS();
-        }
-        wasPortrait = isPortrait;
-    }
-    const mq = window.matchMedia('(orientation: landscape)');
-    if (mq.addEventListener) mq.addEventListener('change', onOrientation);
-    else if (mq.addListener) mq.addListener(onOrientation);
-    window.addEventListener('orientationchange', onOrientation);
+    // Re-assert fullscreen after an orientation change (e.g., rotating to landscape).
+    window.addEventListener('orientationchange', () => setTimeout(enterFS, 300));
 })();
 
 // ==================== CANOPY DATABASE ====================
@@ -1224,7 +1215,9 @@ const CACHED_SETTING_IDS = [
     'wind-ground-dir', 'wind-upper-dir', 'gust-intensity',
     'gear-helmet', 'gear-shirt', 'gear-pants',
     'canopy-color1', 'canopy-color2', 'canopy-pattern',
-    'time-of-day', 'cloud-cover', 'light-pollution'
+    // NOTE: 'time-of-day' is intentionally NOT cached — it always loads to the
+    // dropzone's real local time on each visit. Cloud/light pollution persist.
+    'cloud-cover', 'light-pollution'
 ];
 
 function saveSettings() {
@@ -1253,8 +1246,6 @@ function restoreSettings() {
                 if (el) el.value = settings[id];
             }
         });
-        // If the user previously set a time of day, treat it as their explicit choice
-        if (settings['time-of-day'] != null) window._timeUserSet = true;
         // Restore DZ
         if (settings._dz) {
             selectedDZ = settings._dz;
@@ -8775,7 +8766,7 @@ if (hadCachedDZ && selectedDZ) {
                 updateJumpFromUI();
                 updateCanopyDisplay();
                 applyGearColors();
-                setDefaultTimeForDZ(selectedDZ.lng); // restores saved time or DZ-local default
+                setDefaultTimeForDZ(selectedDZ.lng, true); // always load the DZ's real local time
                 setTimeout(() => applyCanopyColors(), 500); // delay for canopy mesh to init
                 fetchLiveWinds();
             } catch(e) { console.error('Settings restore error:', e); }
