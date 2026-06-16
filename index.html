@@ -856,7 +856,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.84 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.85 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -874,9 +874,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.84';
+const APP_VERSION = 'v1.85';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '10:49 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:03 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -2851,6 +2851,22 @@ class PhysicsEngine {
             this.velocity.y += (Fg / m) * dt;
         }
 
+        // ---- HORIZONTAL AIRSPEED CAP ----
+        // The redirected-drag model can otherwise let forward speed run away (a track
+        // was reaching ~150 mph ground speed). Cap the horizontal speed RELATIVE TO THE
+        // AIR so each position holds a realistic max glide; ground speed then correctly
+        // becomes airspeed minus headwind (or plus tailwind).
+        //   belly ~30mph, sit ~40mph, head-down ~50mph, track ~95mph max forward airspeed
+        const maxHorizAir = ({ belly: 13, track: 43, sitfly: 18, headdown: 22 })[pos] || 15;
+        const arX = this.velocity.x - wind.x;
+        const arZ = this.velocity.z - wind.z;
+        const hAir = Math.sqrt(arX * arX + arZ * arZ);
+        if (hAir > maxHorizAir) {
+            const k = maxHorizAir / hAir;
+            this.velocity.x = wind.x + arX * k;
+            this.velocity.z = wind.z + arZ * k;
+        }
+
         this.position.x += this.velocity.x * dt;
         this.position.y += this.velocity.y * dt;
         this.position.z += this.velocity.z * dt;
@@ -2883,7 +2899,7 @@ class PhysicsEngine {
 
     updateCanopy(dt, wind, input, canopyPerf) {
         // ============ STALL CHECK — disable all inputs if canopy is stalled ============
-        const isStalled = (this.flareTimer || 0) > 2.5;
+        const isStalled = (this.flareTimer || 0) > 6.0;
 
         // ============ TURN DYNAMICS ============
         // Heading = compass bearing (0=N, PI/2=E, PI=S). Increasing = CW = right turn.
@@ -2959,7 +2975,7 @@ class PhysicsEngine {
         if (!isStalled && input.down) speedRatio = 0.75;
 
         if (input.flare) {
-            this.flareTimer = Math.min((this.flareTimer || 0) + dt, 5.0);
+            this.flareTimer = Math.min((this.flareTimer || 0) + dt, 9.0);
             if (!isStalled) speedRatio = canopyPerf.flareSpeedBoost;
         } else {
             this.flareTimer = Math.max((this.flareTimer || 0) - dt * 2, 0);
@@ -3059,14 +3075,16 @@ class PhysicsEngine {
                 descRate = Math.max(descRate, -0.8); // cap climb rate
                 // Speed gradually bleeds as energy converts to altitude
                 finalFwdSpeed = fwdSpeed * (1.3 - t * 0.5);
-            } else if (ft < 3.5) {
-                // Phase 3 (2.0-3.5s): Level float — barely descending, speed bleeding
-                const t = (ft - 2.0) / 1.5;
-                descRate = baseDesc * (0.08 + t * 0.25);
-                finalFwdSpeed = fwdSpeed * (0.8 - t * 0.35);
+            } else if (ft < 6.0) {
+                // Phase 3 (2.0-6.0s): Extended level float — the canopy hangs in deep
+                // brakes, barely descending and slowly bleeding speed. It will NOT
+                // collapse here; a stall only begins past 6 seconds of held flare.
+                const t = (ft - 2.0) / 4.0;
+                descRate = baseDesc * (0.08 + t * 0.22);
+                finalFwdSpeed = fwdSpeed * (0.8 - t * 0.3);
             } else {
-                // Phase 4 (3.5s+): Stall — energy gone, canopy drops, speed dies
-                const t = Math.min(ft - 3.5, 2.0);
+                // Phase 4 (6.0s+): Stall — held too long, canopy drops, speed dies
+                const t = Math.min(ft - 6.0, 2.0);
                 descRate = baseDesc * (0.3 + t * 2.0);
                 finalFwdSpeed = baseFwd * Math.max(0.1, 0.45 - t * 0.2);
                 this.diveSpeed = 0;
@@ -3906,33 +3924,46 @@ class SceneManager {
     _onExitPointerDown(e) {
         if (isRunning) return; // can't move markers during flight
         this._exitPointers.add(e.pointerId);
-        // A second finger = pinch/two-finger gesture → hand it to OrbitControls (zoom/pan)
+        // Two fingers = pinch: cancel any pending/active marker move and let
+        // OrbitControls handle the zoom (its pan is disabled in map mode, so the
+        // pinch only dollies and the exit point stays put).
         if (this._exitPointers.size > 1) {
-            if (this.exitDragging) { this.exitDragging = false; this.orbitControls.enabled = !fpvMode; }
+            this.exitDragging = false;
+            this.draggingTarget = false;
+            this._exitCandidate = null;
             return;
         }
-        // On desktop only the left button moves markers; right/middle drag still pans
+        // On desktop only the left button moves markers; right/middle still go to orbit
         if (e.pointerType === 'mouse' && e.button !== 0) return;
-        // Decide whether the user grabbed the LANDING TARGET or is placing the EXIT point.
-        // Grabbing near the target rings drags the target; anywhere else moves the exit.
-        this.draggingTarget = false;
+        // Defer: don't move anything yet. Decide on move (drag) or release (tap).
+        // This stops a two-finger pinch from nudging the exit before the 2nd finger lands.
+        let onTarget = false;
         const gp = this._groundPoint(e);
         if (gp && window._targetPos) {
             const dx = gp.x - window._targetPos.x, dz = gp.z - window._targetPos.z;
-            const hitR = Math.max(80, (this.landingTargetRadius || 30) * 2.0); // generous grab radius
-            if (Math.sqrt(dx * dx + dz * dz) < hitR) this.draggingTarget = true;
+            const hitR = Math.max(80, (this.landingTargetRadius || 30) * 2.0);
+            if (Math.sqrt(dx * dx + dz * dz) < hitR) onTarget = true;
         }
-        this.exitDragging = true;
-        this.orbitControls.enabled = false;
-        if (this.draggingTarget) this._moveTargetToPointer(e);
-        else this._moveExitToPointer(e); // a tap drops the exit point immediately
-        e.preventDefault();
+        this._exitCandidate = { x: e.clientX, y: e.clientY, t: Date.now(), onTarget };
     }
 
     _onExitPointerMove(e) {
-        if (!this.exitDragging) return;
-        if (this.draggingTarget) this._moveTargetToPointer(e);
-        else this._moveExitToPointer(e);
+        if (this._exitPointers.size !== 1) return; // ignore during pinch
+        if (this.exitDragging) {
+            if (this.draggingTarget) this._moveTargetToPointer(e);
+            else this._moveExitToPointer(e);
+            return;
+        }
+        // Promote a deferred press into a drag once it moves past a small threshold
+        const c = this._exitCandidate;
+        if (!c) return;
+        if (Math.hypot(e.clientX - c.x, e.clientY - c.y) > 7) {
+            this.exitDragging = true;
+            this.draggingTarget = c.onTarget;
+            this.orbitControls.enabled = false;
+            if (this.draggingTarget) this._moveTargetToPointer(e);
+            else this._moveExitToPointer(e);
+        }
     }
 
     _moveTargetToPointer(e) {
@@ -3985,9 +4016,19 @@ class SceneManager {
 
     _onExitPointerUp(e) {
         if (e && e.pointerId !== undefined) this._exitPointers.delete(e.pointerId);
-        if (this._exitPointers.size === 0 && this.exitDragging) {
+        // A quick tap (no drag, single finger) drops the marker where you tapped
+        if (this._exitPointers.size === 0) {
+            if (!this.exitDragging && this._exitCandidate && e) {
+                const c = this._exitCandidate;
+                const moved = Math.hypot((e.clientX || c.x) - c.x, (e.clientY || c.y) - c.y);
+                if (Date.now() - c.t < 400 && moved < 10) {
+                    if (c.onTarget) this._moveTargetToPointer(e);
+                    else this._moveExitToPointer(e);
+                }
+            }
             this.exitDragging = false;
             this.draggingTarget = false;
+            this._exitCandidate = null;
             this.orbitControls.enabled = !fpvMode;
         }
     }
@@ -4036,9 +4077,12 @@ class SceneManager {
                 this.orbitControls.minPolarAngle = 0;
                 this.orbitControls.maxPolarAngle = 0.45; // ~26° — never reaches the horizon
                 this.orbitControls.screenSpacePanning = true;
-                this.orbitControls.enablePan = true;
+                // Pan is OFF in map mode: one finger places/drags the exit point, and a
+                // two-finger pinch only dollies (zooms) — so pinching never pans or
+                // nudges the exit. Mouse wheel still zooms.
+                this.orbitControls.enablePan = false;
                 this.orbitControls.mouseButtons = {
-                    LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN
+                    LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.DOLLY
                 };
                 this.orbitControls.touches = {
                     ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN
@@ -5057,8 +5101,8 @@ class SceneManager {
                 // Stall: vertex deformation removed — stall uses group-level
                 // scale/rotate transforms for realistic crumpled fabric look.
                 // Only minor vertex flutter during early stall for fabric loosening effect
-                if (flareT > 2.5) {
-                    const stallT = Math.min((flareT - 2.5) / 1.5, 1);
+                if (flareT > 6.0) {
+                    const stallT = Math.min((flareT - 6.0) / 1.5, 1);
                     // Slight flutter as cells lose pressure (not dramatic deformation)
                     stallCollapse = stallT * 0.3 * Math.sin(t * 5 + ix * 0.7 + iz * 0.9);
                 }
@@ -5090,8 +5134,8 @@ class SceneManager {
                     const tipDist = Math.abs(u - 0.5) * 2;
 
                     let bStallCollapse = 0;
-                    if (flareT > 2.5) {
-                        const stallT = Math.min((flareT - 2.5) / 1.5, 1);
+                    if (flareT > 6.0) {
+                        const stallT = Math.min((flareT - 6.0) / 1.5, 1);
                         // Minor flutter only — main stall handled by group transforms
                         bStallCollapse = stallT * 0.25 * Math.sin(t * 5 + ix * 0.7 + iz * 0.9);
                     }
@@ -5107,8 +5151,8 @@ class SceneManager {
 
         // ---- STALL: collapse secondary meshes (nose, ribs, tips, trailing edge) ----
         // These elements must also visually collapse when the canopy stalls
-        const stallActive = flareT > 2.5;
-        const stallT = stallActive ? Math.min((flareT - 2.5) / 1.5, 1) : 0;
+        const stallActive = flareT > 6.0;
+        const stallT = stallActive ? Math.min((flareT - 6.0) / 1.5, 1) : 0;
 
         // Aggressively fade and hide ALL secondary structures during stall
         // Everything collapses together — nose/TE/ribs/tips all gone by stallT ~0.4
@@ -7776,23 +7820,8 @@ function updateDualCircleInputs() {
 }
 
 function updateCircleVisuals() {
-    const dc = window._dualCircle;
-    const leftDot = document.getElementById('ff-dot-left');
-    const rightDot = document.getElementById('ff-dot-right');
-    if (leftDot) {
-        if (dc.leftActive) {
-            leftDot.style.display = 'block';
-            // Horizontal turn bar: -1 = far left, +1 = far right
-            leftDot.style.left = ((dc.leftVal + 1) / 2 * 100) + '%';
-        } else { leftDot.style.display = 'none'; }
-    }
-    if (rightDot) {
-        if (dc.rightActive) {
-            rightDot.style.display = 'block';
-            const travel = 148;
-            rightDot.style.top = ((1 - dc.rightVal) / 2 * travel) + 'px';
-        } else { rightDot.style.display = 'none'; }
-    }
+    // The freefall pad dot is positioned directly in processFreefallPad();
+    // nothing to do here each frame.
 }
 
 // Set the active freefall position from the on-screen buttons + highlight them
@@ -7884,33 +7913,21 @@ function setupTouchControls() {
             background:#f59e0b;border-radius:5px;pointer-events:none;display:none;box-shadow:0 0 8px rgba(245,158,11,0.7);"></div>
         <div id="touch-indicator-right" style="position:absolute;right:calc(49px + env(safe-area-inset-right,0px));width:77px;height:9px;
             background:#f59e0b;border-radius:5px;pointer-events:none;display:none;box-shadow:0 0 8px rgba(245,158,11,0.7);"></div>
-        <!-- Freefall dual-circle controls -->
-        <!-- Freefall LEFT bar = TURN (X axis): top = right, bottom = left, center = neutral -->
-        <!-- Freefall LEFT control = TURN (X axis), HORIZONTAL: left = turn left, right = turn right -->
-        <div id="ff-circle-left" style="position:absolute;left:calc(12px + env(safe-area-inset-left,0px));bottom:120px;width:calc(30vw - 24px);height:48px;
-            border-radius:24px;border:2px solid rgba(96,165,250,0.5);pointer-events:none;display:none;
-            background:linear-gradient(to right,rgba(96,165,250,0.16),rgba(96,165,250,0.04) 50%,rgba(96,165,250,0.16));
+        <!-- Freefall single control pad (right side): one circle drives turn (X) AND
+             pitch/drive (Y) together. Relative joystick — where you press is neutral. -->
+        <div id="ff-pad" style="position:absolute;right:calc(36px + env(safe-area-inset-right,0px));bottom:110px;width:150px;height:150px;
+            border-radius:50%;border:2px solid rgba(96,165,250,0.5);pointer-events:none;display:none;
+            background:radial-gradient(circle at 50% 50%, rgba(96,165,250,0.16), rgba(52,211,153,0.10) 70%, rgba(96,165,250,0.05));
             overflow:hidden;">
-            <div style="position:absolute;left:50%;height:100%;width:2px;background:rgba(255,255,255,0.35);"></div>
-            <div id="ff-dot-left" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-                width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.9);
-                box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
-            <div style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:9px;color:rgba(147,197,253,0.9);font-family:monospace;pointer-events:none;">◀ L</div>
-            <div style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%);font-size:7px;color:rgba(255,255,255,0.5);font-family:monospace;pointer-events:none;">TURN</div>
-            <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:9px;color:rgba(147,197,253,0.9);font-family:monospace;pointer-events:none;">R ▶</div>
-        </div>
-        <!-- Freefall RIGHT bar = DRIVE (Y axis): top = forward, bottom = back, center = neutral -->
-        <div id="ff-circle-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));bottom:90px;width:56px;height:180px;
-            border-radius:28px;border:2px solid rgba(52,211,153,0.5);pointer-events:none;display:none;
-            background:linear-gradient(to top,rgba(52,211,153,0.16),rgba(52,211,153,0.04) 50%,rgba(52,211,153,0.16));
-            overflow:hidden;">
-            <div style="position:absolute;top:50%;width:100%;height:2px;background:rgba(255,255,255,0.35);"></div>
-            <div id="ff-dot-right" style="position:absolute;left:50%;transform:translateX(-50%);
-                width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);
-                box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
-            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:8px;color:rgba(110,231,183,0.85);font-family:monospace;pointer-events:none;">▲ FWD</div>
-            <div style="position:absolute;top:50%;transform:translateY(-50%);width:100%;text-align:center;font-size:7px;color:rgba(255,255,255,0.5);font-family:monospace;pointer-events:none;">DRIVE</div>
-            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:8px;color:rgba(110,231,183,0.85);font-family:monospace;pointer-events:none;">BACK ▼</div>
+            <div style="position:absolute;left:50%;top:8%;bottom:8%;width:1px;background:rgba(255,255,255,0.22);transform:translateX(-50%);"></div>
+            <div style="position:absolute;top:50%;left:8%;right:8%;height:1px;background:rgba(255,255,255,0.22);transform:translateY(-50%);"></div>
+            <div id="ff-pad-dot" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.92);
+                box-shadow:0 0 14px rgba(255,255,255,0.6);display:none;"></div>
+            <div style="position:absolute;top:5px;left:50%;transform:translateX(-50%);font-size:8px;color:rgba(110,231,183,0.9);font-family:monospace;pointer-events:none;">▲ FWD</div>
+            <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:8px;color:rgba(110,231,183,0.9);font-family:monospace;pointer-events:none;">BACK ▼</div>
+            <div style="position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:8px;color:rgba(147,197,253,0.9);font-family:monospace;pointer-events:none;">◀L</div>
+            <div style="position:absolute;right:5px;top:50%;transform:translateY(-50%);font-size:8px;color:rgba(147,197,253,0.9);font-family:monospace;pointer-events:none;">R▶</div>
         </div>
         <!-- Freefall body position HUD -->
         <div id="ff-body-hud" style="position:fixed;top:70px;left:50%;transform:translateX(-50%);
@@ -7947,23 +7964,32 @@ function setupTouchControls() {
         }
     }
 
-    // Vertical value for the DRIVE bar (right): top = +1 (forward), bottom = -1 (back)
-    function getCircleValue(touchY) {
-        const el = document.getElementById('ff-circle-right');
-        let top, bot;
-        if (el) { const r = el.getBoundingClientRect(); top = r.top; bot = r.bottom; }
-        else { const h = window.innerHeight; top = h * 0.15; bot = h * 0.90; }
-        const frac = 1 - Math.max(0, Math.min(1, (touchY - top) / (bot - top)));
-        return frac * 2 - 1; // -1 to +1
-    }
-    // Horizontal value for the TURN bar (left): left = -1, right = +1
-    function getTurnValueX(clientX) {
-        const el = document.getElementById('ff-circle-left');
-        let l, r;
-        if (el) { const b = el.getBoundingClientRect(); l = b.left; r = b.right; }
-        else { l = 12; r = window.innerWidth * 0.3; }
-        const frac = Math.max(0, Math.min(1, (clientX - l) / (r - l)));
-        return frac * 2 - 1; // -1 (left) to +1 (right)
+    // Single freefall pad: relative 2D joystick. First touch = neutral origin;
+    // dragging sets turn (X, right = +) and drive (Y, up/forward = +) together.
+    const PAD_RADIUS = 70; // px drag for full deflection
+    function processFreefallPad(clientX, clientY) {
+        const dc = window._dualCircle;
+        const dot = document.getElementById('ff-pad-dot');
+        if (clientX === null || clientY === null) {
+            dc.leftActive = false; dc.rightActive = false;
+            dc.leftVal = 0; dc.rightVal = 0;
+            dc.padOrigin = null;
+            if (dot) dot.style.display = 'none';
+            return;
+        }
+        if (!dc.padOrigin) dc.padOrigin = { x: clientX, y: clientY };
+        let nx = (clientX - dc.padOrigin.x) / PAD_RADIUS;
+        let ny = (clientY - dc.padOrigin.y) / PAD_RADIUS;
+        const mag = Math.hypot(nx, ny);
+        if (mag > 1) { nx /= mag; ny /= mag; }
+        dc.leftVal = nx;       // turn: right = +1, left = -1
+        dc.rightVal = -ny;     // drive: up = +1 (forward), down = -1 (back)
+        dc.leftActive = true; dc.rightActive = true;
+        if (dot) {
+            dot.style.display = 'block';
+            dot.style.left = (50 + nx * 40) + '%';
+            dot.style.top = (50 + ny * 40) + '%';
+        }
     }
 
     // === CANOPY TOGGLE PROCESSING (unchanged logic, but only runs under canopy) ===
@@ -8002,26 +8028,14 @@ function setupTouchControls() {
         updateIndicator('right', rightY);
     }
 
-    // === FREEFALL CONTROL PROCESSING ===
-    // Left side = TURN (horizontal, uses X). Right side = DRIVE (vertical, uses Y).
-    function processFreefallCircles(side, clientX, clientY) {
-        const dc = window._dualCircle;
-        if (clientX !== null && clientY !== null) {
-            if (side === 'left') dc.leftVal = getTurnValueX(clientX);
-            else dc.rightVal = getCircleValue(clientY);
-            dc[side + 'Active'] = true;
-        } else {
-            dc[side + 'Active'] = false;
-            dc[side + 'Val'] = 0;
-        }
-        // Freefall inputs are updated each frame by updateDualCircleInputs() in gameLoop
-    }
-
     // === PHASE-AWARE TOUCH HANDLER ===
+    // Freefall: the single right-side pad controls everything (left side unused).
+    // Canopy: left/right are the brake toggles (vertical depth).
     function handleSideTouch(side, clientX, clientY) {
         const isFreefall = physics && physics.phase === 'freefall';
         if (isFreefall) {
-            processFreefallCircles(side, clientX, clientY);
+            if (side === 'right') processFreefallPad(clientX, clientY);
+            // left side does nothing in freefall (single pad on the right)
         } else {
             touches[side] = clientY; // canopy toggles use vertical depth
             processCanopyTouches();
@@ -8284,13 +8298,11 @@ function setupTouchControls() {
         if (flipBtnEl2) flipBtnEl2.style.display = (physics && physics.phase === 'canopy') ? 'flex' : 'none';
         const lpBtnEl = document.getElementById('landing-proj-btn');
         if (lpBtnEl) lpBtnEl.style.display = (physics && physics.phase === 'canopy') ? 'flex' : 'none';
-        // Show freefall circles during freefall, canopy depth bars during canopy
-        const ffCircleL = document.getElementById('ff-circle-left');
-        const ffCircleR = document.getElementById('ff-circle-right');
+        // Show the single freefall pad during freefall, canopy depth bars during canopy
+        const ffPad = document.getElementById('ff-pad');
         const depthL = document.getElementById('touch-depth-left');
         const depthR = document.getElementById('touch-depth-right');
-        if (ffCircleL) ffCircleL.style.display = isFreefall ? 'block' : 'none';
-        if (ffCircleR) ffCircleR.style.display = isFreefall ? 'block' : 'none';
+        if (ffPad) ffPad.style.display = isFreefall ? 'block' : 'none';
         if (depthL) depthL.style.display = isCanopy ? 'block' : 'none';
         if (depthR) depthR.style.display = isCanopy ? 'block' : 'none';
         // Freefall body-position buttons (flank the PULL button)
