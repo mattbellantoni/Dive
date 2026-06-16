@@ -691,7 +691,7 @@
     <div class="control-group" style="margin-top:8px;">
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
             <span>Landing Projection</span>
-            <input type="checkbox" id="landing-proj-toggle" checked style="width:16px;height:16px;">
+            <input type="checkbox" id="landing-proj-toggle" style="width:16px;height:16px;">
         </label>
     </div>
     <div id="desktop-exit-hint" style="margin-top:10px;padding:5px 8px;background:rgba(59,130,246,0.1);
@@ -856,7 +856,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.87 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.89 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -874,9 +874,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.87';
+const APP_VERSION = 'v1.89';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:24 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '9:56 AM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1471,8 +1471,8 @@ window.toggleMobileSettings = function() {
 window.isMobileDevice = /Android|iPhone|iPad|iPod|webOS|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent) ||
     (window.innerWidth <= 768 && 'ontouchstart' in window);
 
-// Landing projection display toggle
-window.showLandingProjection = true;
+// Landing projection display toggle (off by default)
+window.showLandingProjection = false;
 
 // Wire up mobile buttons — deferred to end of script to ensure everything is defined
 setTimeout(() => {
@@ -2932,6 +2932,7 @@ class PhysicsEngine {
         this.smoothRearLeft  += (tgtRearL - this.smoothRearLeft)  * rearEase;
         this.smoothRearRight += (tgtRearR - this.smoothRearRight) * rearEase;
         const rearAmt = Math.max(this.smoothRearLeft, this.smoothRearRight); // symmetric strength
+        this.rearAmt = rearAmt;        // expose for canopy pitch animation
         const rearTurn = this.smoothRearLeft - this.smoothRearRight;          // + = turn left (matches toggles)
 
         // Toggle turn + a gentler rear-riser turn (rear risers ≈ 55% of toggle authority)
@@ -2982,6 +2983,7 @@ class PhysicsEngine {
         const frontEase = (targetFront > this.smoothFrontRiser) ? 1.3 : 0.9; // slower recovery
         this.smoothFrontRiser += (targetFront - this.smoothFrontRiser) * Math.min(frontEase * dt, 1);
         speedRatio = 1 + this.smoothFrontRiser * (riserBoost - 1);
+        this.frontAmt = this.smoothFrontRiser; // expose for canopy pitch animation
         // (Rear riser amount `rearAmt` is computed up in the turn section — it both
         //  turns the canopy when asymmetric and flattens/slows the glide below.)
         // Half-brakes (both toggles partially down) still slow the wing
@@ -3029,17 +3031,23 @@ class PhysicsEngine {
         }
 
         // ============ REAR RISER RESPONSE ============
-        // Graduated, like a soft brake on the tail of the wing:
-        //   light pull (top)    → flatter glide: a touch slower, slightly less descent
-        //   medium pull (middle)→ noticeably slower, glide near its flattest
-        //   heavy pull (bottom) → angle of attack climbs toward a stall — speed bleeds
-        //                          and descent rises (the wing starts to mush)
+        // Rear risers pull the TAIL down → higher angle of attack → the wing planes
+        // out: it FLATTENS the glide (the best glide ratio of any input) while only
+        // bleeding a little airspeed. This is the canopy's max-distance mode — vital for
+        // penetrating a headwind and for riding a tailwind further. Only when pulled
+        // deep (past best glide) does the angle of attack climb toward a stall, where
+        // descent spikes and speed dies.  Ref: Flight-1 input-effect charts.
         let rearSpeedMult = 1.0;
         if (rearAmt > 0.001) {
-            rearSpeedMult = 1 - rearAmt * 0.45;                 // up to ~45% slower
+            rearSpeedMult = 1 - rearAmt * 0.18;                 // only a small speed loss (~18%)
             let rearDescMult;
-            if (rearAmt <= 0.5) rearDescMult = 1 - rearAmt * 0.5;       // 1.0 → 0.75 (flatter)
-            else rearDescMult = 0.75 + (rearAmt - 0.5) * 2.4;            // 0.75 → ~1.95 (toward stall)
+            if (rearAmt <= 0.65) {
+                // Up to best glide: descent drops faster than speed → flatter glide
+                rearDescMult = 1 - rearAmt * 0.45;              // 1.0 → ~0.71 (much flatter)
+            } else {
+                // Past best glide → toward stall: descent climbs hard
+                rearDescMult = 0.71 + (rearAmt - 0.65) * 3.5;   // 0.71 → ~1.94 (stall/mush)
+            }
             descRate *= rearDescMult;
         }
 
@@ -6531,16 +6539,20 @@ class SceneManager {
                         canopyYOffset += 1.5 - t * 1.8;    // canopy sinks toward jumper (stays above)
                         canopyZOffset *= (1 - t * 0.4);     // reduce forward offset — stays overhead
                     }
-                } else if (input.down || input.rearRiser) {
-                    // Brakes / rear risers: trailing edge pulls down, nose pitches UP, AoA increases
-                    const brakeDepth = input.rearRiser ? 0.5 : 1.0;
-                    canopyPitch = 0.30 * brakeDepth;      // visible nose-up — TE pulled hard
-                    canopyYOffset += 0.5 * brakeDepth;    // canopy rises slightly (more lift from AoA)
+                } else if (input.rearRiser || input.down) {
+                    // Rear risers / brakes: the TAIL is pulled DOWN → the nose pitches UP,
+                    // angle of attack rises and the glide FLATTENS (max-distance mode).
+                    // Analog with how far the rears are pulled.
+                    const rA = input.rearRiser ? (state.rearAmt != null ? state.rearAmt : 0.5) : 0.6;
+                    canopyPitch = 0.12 + rA * 0.42;        // nose-up (tail down), proportional
+                    canopyYOffset += 0.4 + rA * 0.6;       // wing planes up a touch
                 } else if (input.up) {
-                    // Front risers: NOSE DIVES, TAIL RISES — aggressive speed run
-                    canopyPitch = -0.30;                   // ~17° nose-down — very visible dive
-                    canopyYOffset -= 1.2;                  // canopy drops below, diving
-                    canopyZOffset += 0.5;                  // surges forward
+                    // Front risers: the NOSE is pulled DOWN → angle to the ground decreases,
+                    // the canopy dives and the glide steepens (less glide, more speed).
+                    const fA = state.frontAmt != null ? state.frontAmt : 1;
+                    canopyPitch = -(0.12 + fA * 0.32);     // nose-down dive, proportional
+                    canopyYOffset -= 0.6 + fA * 0.8;       // canopy drops below, diving
+                    canopyZOffset += 0.3 + fA * 0.4;       // surges forward
                 }
 
                 let canopyRoll = state.bankAngle || 0;
@@ -6844,15 +6856,16 @@ class SceneManager {
             if (!isFreefall && state.bankAngle) {
                 this.camera.rotation.z += state.bankAngle * 0.3;
             }
-        } else if (state.phase === 'freefall' && !this._userCamOverride) {
-            // FREEFALL: lock the camera overhead and rotate it with the jumper's
-            // heading so the jumper always faces 12 o'clock and the ground/map below
-            // rotates beneath them as they turn.
+        } else if (state.phase === 'freefall') {
+            // FREEFALL: lock the camera directly overhead and rotate it WITH the jumper's
+            // heading, so the jumper always faces 12 o'clock and the ground/map below
+            // rotates beneath them as they turn. Always on in freefall (camera drag is
+            // ignored here) so the heading-up view is consistent.
             const ffHeading = state.ffYaw || 0;
             const targetCam = new THREE.Vector3(targetPos.x, targetPos.y + 22, targetPos.z);
-            this.camera.position.lerp(targetCam, 0.12);
+            this.camera.position.lerp(targetCam, 0.18);
+            this.camera.up.set(Math.sin(ffHeading), 0, Math.cos(ffHeading)); // jumper's forward = screen up
             this.camera.lookAt(this.camera.position.x, this.camera.position.y - 500, this.camera.position.z);
-            this.camera.up.set(Math.sin(ffHeading), 0, Math.cos(ffHeading)); // forward = up on screen
             this.orbitControls.target.copy(targetPos);
         } else {
             // Third-person orbit camera — follows heading when steering
@@ -6974,7 +6987,7 @@ class SceneManager {
         // rotated with the jumper's heading) — skip OrbitControls.update() so it doesn't
         // overwrite our up-vector/position and the ground can twist beneath the jumper.
         const ffLock = (typeof physics !== 'undefined' && physics &&
-            physics.phase === 'freefall' && !this._userCamOverride && !fpvMode);
+            physics.phase === 'freefall' && !fpvMode);
         if (!fpvMode && !window._cameraFlipped && !ffLock) this.orbitControls.update();
         // Keep sky sphere centered on camera so it never clips
         if (this.skyMesh) this.skyMesh.position.copy(this.camera.position);
