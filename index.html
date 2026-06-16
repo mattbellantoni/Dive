@@ -870,7 +870,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.93 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.94 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -888,9 +888,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.93';
+const APP_VERSION = 'v1.94';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:28 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:36 AM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -2694,6 +2694,7 @@ class PhysicsEngine {
         this.tumbleRate = 0;
         this.instability = 0;
         // Freefall body orientation
+        this.ffFwdAir = 0;          // forward airspeed through the air mass (m/s)
         this.ffYaw = 0;             // freefall heading (yaw rotation around vertical)
         this.ffYawRate = 0;         // yaw angular velocity
         this.ffPitch = 0;           // 0=belly, negative=tracking/head-down, positive=sit/backflip
@@ -2858,53 +2859,35 @@ class PhysicsEngine {
         this.bodyDeflectX = deflectX + Math.sin(this.tumbleAngle * 2.3) * this.instability * 0.12;
         this.bodyDeflectZ = deflectZ + Math.cos(this.tumbleAngle * 1.7) * this.instability * 0.12;
 
+        // ===== VERTICAL: gravity vs drag → terminal fall rate (per-position CdA) =====
         const Fg = -m * CONFIG.GRAVITY;
-        const vRelX = this.velocity.x - wind.x;
-        const vRelY = this.velocity.y;
-        const vRelZ = this.velocity.z - wind.z;
-        const vRelMag = Math.sqrt(vRelX * vRelX + vRelY * vRelY + vRelZ * vRelZ);
-        const Fd = 0.5 * rho * effectiveCdA * vRelMag * vRelMag;
+        const vDown = Math.abs(this.velocity.y) || 0.01;
+        const FdV = 0.5 * rho * effectiveCdA * vDown * vDown; // drag from vertical airspeed
+        // gravity pulls down (Fg<0); drag opposes vertical motion (up while falling)
+        this.velocity.y += (Fg / m + (this.velocity.y < 0 ? FdV / m : -FdV / m)) * dt;
 
-        if (vRelMag > 0.01) {
-            // Base drag opposes relative velocity
-            const dragKeep = 1.0 - Math.abs(deflectX) - Math.abs(deflectZ);
-            const baseDragX = -Fd * (vRelX / vRelMag) / m * dragKeep;
-            const baseDragY = -Fd * (vRelY / vRelMag) / m;
-            const baseDragZ = -Fd * (vRelZ / vRelMag) / m * dragKeep;
+        // ===== HORIZONTAL: explicit air-relative glide, THEN add wind =====
+        // Ground velocity = (forward airspeed along heading) + wind vector.
+        // This guarantees a TAILWIND increases ground speed and a HEADWIND decreases it.
+        // Forward airspeed (m/s) is set by the body position + drive input — independent
+        // of wind (your speed through the air mass), exactly like real freefall.
+        const FWD_AIR = {
+            belly:    { base: 3,  auth: 7  },   // belly drives little
+            track:    { base: 30, auth: 13 },   // strong forward glide (~60–96 mph airspeed)
+            sitfly:   { base: 2,  auth: 12 },
+            headdown: { base: 4,  auth: 16 },
+        };
+        const fa = FWD_AIR[pos] || FWD_AIR.belly;
+        let targetFwdAir = fa.base + driveIn * fa.auth;     // forward(+) / back(-)
+        targetFwdAir = Math.max(-8, targetFwdAir);          // allow a little backslide
+        if (this.ffFwdAir == null) this.ffFwdAir = 0;
+        this.ffFwdAir += (targetFwdAir - this.ffFwdAir) * Math.min(1.5 * dt, 1);
 
-            // Redirected force: tracking/drift creates horizontal movement
-            // Direction follows ffYaw heading
-            const fwdX = -Math.sin(this.ffYaw);
-            const fwdZ = Math.cos(this.ffYaw);
-            const rightX = Math.cos(this.ffYaw);
-            const rightZ = Math.sin(this.ffYaw);
-            const redirectFwd = (Fd / m) * deflectZ;
-            const redirectLat = (Fd / m) * deflectX;
-            const redirectX = fwdX * redirectFwd + rightX * redirectLat;
-            const redirectZ = fwdZ * redirectFwd + rightZ * redirectLat;
-
-            this.velocity.x += (baseDragX + redirectX) * dt;
-            this.velocity.y += (Fg / m + baseDragY) * dt;
-            this.velocity.z += (baseDragZ + redirectZ) * dt;
-        } else {
-            this.velocity.y += (Fg / m) * dt;
-        }
-
-        // ---- HORIZONTAL AIRSPEED CAP ----
-        // The redirected-drag model can otherwise let forward speed run away (a track
-        // was reaching ~150 mph ground speed). Cap the horizontal speed RELATIVE TO THE
-        // AIR so each position holds a realistic max glide; ground speed then correctly
-        // becomes airspeed minus headwind (or plus tailwind).
-        //   belly ~30mph, sit ~40mph, head-down ~50mph, track ~95mph max forward airspeed
-        const maxHorizAir = ({ belly: 13, track: 43, sitfly: 18, headdown: 22 })[pos] || 15;
-        const arX = this.velocity.x - wind.x;
-        const arZ = this.velocity.z - wind.z;
-        const hAir = Math.sqrt(arX * arX + arZ * arZ);
-        if (hAir > maxHorizAir) {
-            const k = maxHorizAir / hAir;
-            this.velocity.x = wind.x + arX * k;
-            this.velocity.z = wind.z + arZ * k;
-        }
+        const fwdX = -Math.sin(this.ffYaw), fwdZ = Math.cos(this.ffYaw);
+        const rightX = Math.cos(this.ffYaw), rightZ = Math.sin(this.ffYaw);
+        const latAir = deflectX * 6; // slight crab during turns
+        this.velocity.x = fwdX * this.ffFwdAir + rightX * latAir + wind.x;
+        this.velocity.z = fwdZ * this.ffFwdAir + rightZ * latAir + wind.z;
 
         this.position.x += this.velocity.x * dt;
         this.position.y += this.velocity.y * dt;
@@ -5595,13 +5578,13 @@ class SceneManager {
         // connected by a bridle through the center cells to the d-bag on top.
         // Real PCs are typically bright (white, orange, or neon) and ~28-32" diameter collapsed.
         const collapsedPCMat = new THREE.MeshLambertMaterial({ color: 0xff6600 });
-        const collapsedPCGeo = new THREE.SphereGeometry(0.85, 10, 8);
+        const collapsedPCGeo = new THREE.SphereGeometry(1.2, 12, 10);
         collapsedPCGeo.scale(1.2, 0.55, 1.2); // flattened/collapsed — wider pancake shape
         this.collapsedPilotChute = new THREE.Mesh(collapsedPCGeo, collapsedPCMat);
         this.collapsedPilotChute.renderOrder = 6;
         this.collapsedPilotChute.visible = false;
-        // Trails behind and below the trailing edge (TE is at ~z=3-4 in canopy coords)
-        this.collapsedPilotChute.position.set(0, -1.6, 6.2);
+        // Trails well behind + below the trailing edge in clear air (TE ~z=3-4 local)
+        this.collapsedPilotChute.position.set(0, -3.0, 7.5);
         this.canopyGroup.add(this.collapsedPilotChute);
 
         // Bridle line from d-bag (top of canopy) through TE to collapsed pilot chute
@@ -5886,10 +5869,10 @@ class SceneManager {
                 pcY = -0.5 - pcStallT * 3;  // falls down
                 pcX = Math.sin(flutterTime * 2.5) * pcStallT * 0.5; // chaotic lateral
             } else {
-                // Normal flight: trails behind + below the TE in clear air (visible),
-                // fluttering in the relative wind.
-                pcZ = 6.2 + Math.sin(flutterTime * 2) * 0.5;
-                pcY = -1.6 + Math.sin(flutterTime * 3.5) * 0.3;
+                // Normal flight: trails well behind + below the TE in clear air,
+                // fluttering in the relative wind (clearly visible from the chase cam).
+                pcZ = 7.5 + Math.sin(flutterTime * 2) * 0.5;
+                pcY = -3.0 + Math.sin(flutterTime * 3.5) * 0.3;
                 pcX = Math.sin(flutterTime * 1.7) * 0.2;
             }
             this.collapsedPilotChute.position.set(pcX, pcY, pcZ);
