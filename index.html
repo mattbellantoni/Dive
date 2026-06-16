@@ -368,7 +368,7 @@
             #phase-indicator { top: 42px; font-size: 8px; padding: 2px 8px; }
 
             /* Heading tape compass — below HUD on mobile */
-            #heading-tape { top: 44px !important; width: 160px !important; height: 28px !important; }
+            #heading-tape { top: 40px !important; width: 160px !important; height: 28px !important; }
             #heading-tape canvas { width: 160px !important; height: 28px !important; }
 
             /* Wind indicator — top center below phase */
@@ -528,7 +528,7 @@
 </div>
 <!-- Old heading HUD item removed — replaced by heading tape below -->
 <!-- Heading tape HUD — compact 180° arc -->
-<div id="heading-tape" style="position:fixed;top:78px;left:50%;transform:translateX(-50%);
+<div id="heading-tape" style="position:fixed;top:60px;left:50%;transform:translateX(-50%);
     width:220px;height:34px;overflow:hidden;z-index:100;display:none;
     background:rgba(0,0,0,0.7);border-radius:10px;border:1px solid rgba(255,255,255,0.15);">
     <canvas id="heading-tape-canvas" width="220" height="34" style="display:block;"></canvas>
@@ -856,7 +856,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.85 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.86 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -874,9 +874,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.85';
+const APP_VERSION = 'v1.86';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:03 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:16 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -2643,6 +2643,8 @@ class PhysicsEngine {
         // Smoothed riser inputs so dives/flattening develop gradually (not instant)
         this.smoothFrontRiser = 0;
         this.smoothRearRiser = 0;
+        this.smoothRearLeft = 0;   // per-side rear riser (for rear-riser turns)
+        this.smoothRearRight = 0;
         // Phugoid / recovery-arc oscillator: a lightly damped pitch oscillation that
         // makes the canopy surge and dive after a control release or a wind gust,
         // settling back to its trim glide ratio over ~7-10 seconds.
@@ -2918,7 +2920,22 @@ class PhysicsEngine {
         this.smoothRightBrake += (targetRightBrake - this.smoothRightBrake) * toggleEase;
         const leftAmt  = this.smoothLeftBrake;
         const rightAmt = this.smoothRightBrake;
-        const turnInput = leftAmt - rightAmt;
+
+        // ---- REAR RISER per-side smoothing (used for both turn + glide) ----
+        // Pulling one rear riser deflects that side's tail down → more lift & drag on
+        // that side → the canopy yaws toward it. A single rear riser = a gentle flat
+        // turn in that direction (less authority than toggles, quicker response).
+        const kbRear = (!isStalled && input.rearRiser && !(input.rearLeftAmt > 0) && !(input.rearRightAmt > 0)) ? 1 : 0;
+        const tgtRearL = isStalled ? 0 : Math.max(input.rearLeftAmt || 0, kbRear);
+        const tgtRearR = isStalled ? 0 : Math.max(input.rearRightAmt || 0, kbRear);
+        const rearEase = Math.min(2.0 * dt, 1);
+        this.smoothRearLeft  += (tgtRearL - this.smoothRearLeft)  * rearEase;
+        this.smoothRearRight += (tgtRearR - this.smoothRearRight) * rearEase;
+        const rearAmt = Math.max(this.smoothRearLeft, this.smoothRearRight); // symmetric strength
+        const rearTurn = this.smoothRearLeft - this.smoothRearRight;          // + = turn left (matches toggles)
+
+        // Toggle turn + a gentler rear-riser turn (rear risers ≈ 55% of toggle authority)
+        const turnInput = (leftAmt - rightAmt) + rearTurn * 0.55;
 
         // Turn rate builds up gradually (canopy has inertia), not instant
         const targetTurnRate = turnInput * canopyPerf.turnRate;
@@ -2965,12 +2982,8 @@ class PhysicsEngine {
         const frontEase = (targetFront > this.smoothFrontRiser) ? 1.3 : 0.9; // slower recovery
         this.smoothFrontRiser += (targetFront - this.smoothFrontRiser) * Math.min(frontEase * dt, 1);
         speedRatio = 1 + this.smoothFrontRiser * (riserBoost - 1);
-        // ---- REAR RISERS (smoothed analog) ---- applied to glide after the polar
-        const targetRear = (!isStalled && input.rearRiser)
-            ? ((input.rearRiserAmount != null && input.rearRiserAmount > 0) ? Math.min(1, input.rearRiserAmount) : 1)
-            : 0;
-        this.smoothRearRiser += (targetRear - this.smoothRearRiser) * Math.min(2.0 * dt, 1);
-        const rearAmt = this.smoothRearRiser;
+        // (Rear riser amount `rearAmt` is computed up in the turn section — it both
+        //  turns the canopy when asymmetric and flattens/slows the glide below.)
         // Half-brakes (both toggles partially down) still slow the wing
         if (!isStalled && input.down) speedRatio = 0.75;
 
@@ -6831,6 +6844,16 @@ class SceneManager {
             if (!isFreefall && state.bankAngle) {
                 this.camera.rotation.z += state.bankAngle * 0.3;
             }
+        } else if (state.phase === 'freefall' && !this._userCamOverride) {
+            // FREEFALL: lock the camera overhead and rotate it with the jumper's
+            // heading so the jumper always faces 12 o'clock and the ground/map below
+            // rotates beneath them as they turn.
+            const ffHeading = state.ffYaw || 0;
+            const targetCam = new THREE.Vector3(targetPos.x, targetPos.y + 22, targetPos.z);
+            this.camera.position.lerp(targetCam, 0.12);
+            this.camera.lookAt(this.camera.position.x, this.camera.position.y - 500, this.camera.position.z);
+            this.camera.up.set(Math.sin(ffHeading), 0, Math.cos(ffHeading)); // forward = up on screen
+            this.orbitControls.target.copy(targetPos);
         } else {
             // Third-person orbit camera — follows heading when steering
             const dist = this.camera.position.distanceTo(targetPos);
@@ -7392,7 +7415,7 @@ class UIController {
 // ==================== MAIN APPLICATION ====================
 let sceneManager, physics, windSystem, ui, soundSystem;
 let lastTime = 0, isRunning = false, simInitialized = false;
-let input = { left: false, right: false, up: false, down: false, rearRiser: false, rearRiserAmount: 0, flare: false, deploy: false, ffPosition: 'belly', leftDepth: 0, rightDepth: 0, ffTurn: 0, ffDrive: 0 };
+let input = { left: false, right: false, up: false, down: false, rearRiser: false, rearRiserAmount: 0, rearLeftAmt: 0, rearRightAmt: 0, flare: false, deploy: false, ffPosition: 'belly', leftDepth: 0, rightDepth: 0, ffTurn: 0, ffDrive: 0 };
 // Currently selected freefall discipline (set by the four position buttons)
 window._ffPosition = 'belly';
 let fpvMode = false; // first-person camera toggle
@@ -7861,11 +7884,11 @@ function setupTouchControls() {
         <!-- Left side: front riser (upper) + rear riser (lower) -->
         <!-- Front risers (blue): half the size of the rears, simple press to activate -->
         <div id="riser-front-left" style="position:absolute;left:calc(134px + env(safe-area-inset-left,0px));bottom:218px;width:30px;height:73px;
-            background:linear-gradient(to bottom,rgba(59,130,246,0.30),rgba(59,130,246,0.08));
-            border-radius:12px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
+            background:linear-gradient(to bottom,rgba(255,255,255,0.05) 0%,rgba(255,210,80,0.12) 30%,rgba(255,140,0,0.20) 65%,rgba(239,68,68,0.30) 100%);
+            border-radius:12px;border:1px solid rgba(255,255,255,0.12);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:8px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
+                font-size:8px;color:rgba(255,255,255,0.85);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
         <!-- Rear risers: 33% bigger, analog (top = light, bottom = heavy), toggle-style coloring -->
         <div id="riser-rear-left" style="position:absolute;left:calc(120px + env(safe-area-inset-left,0px));bottom:60px;width:59px;height:146px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05) 0%,rgba(255,210,80,0.12) 30%,rgba(255,140,0,0.20) 65%,rgba(239,68,68,0.30) 100%);
@@ -7878,11 +7901,11 @@ function setupTouchControls() {
                 font-size:9px;color:rgba(255,255,255,0.85);font-family:monospace;white-space:nowrap;font-weight:bold;pointer-events:none;">REAR</span></div>
         <!-- Right side: front riser (upper) + rear riser (lower) -->
         <div id="riser-front-right" style="position:absolute;right:calc(134px + env(safe-area-inset-right,0px));bottom:218px;width:30px;height:73px;
-            background:linear-gradient(to bottom,rgba(59,130,246,0.30),rgba(59,130,246,0.08));
-            border-radius:12px;border:2px solid rgba(59,130,246,0.5);pointer-events:auto;display:none;
+            background:linear-gradient(to bottom,rgba(255,255,255,0.05) 0%,rgba(255,210,80,0.12) 30%,rgba(255,140,0,0.20) 65%,rgba(239,68,68,0.30) 100%);
+            border-radius:12px;border:1px solid rgba(255,255,255,0.12);pointer-events:auto;display:none;
             touch-action:none;user-select:none;">
             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);
-                font-size:8px;color:rgba(147,197,253,0.95);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
+                font-size:8px;color:rgba(255,255,255,0.85);font-family:monospace;white-space:nowrap;font-weight:bold;">FRONT</span></div>
         <div id="riser-rear-right" style="position:absolute;right:calc(120px + env(safe-area-inset-right,0px));bottom:60px;width:59px;height:146px;
             background:linear-gradient(to bottom,rgba(255,255,255,0.05) 0%,rgba(255,210,80,0.12) 30%,rgba(255,140,0,0.20) 65%,rgba(239,68,68,0.30) 100%);
             border-radius:16px;border:1px solid rgba(255,255,255,0.12);pointer-events:auto;display:none;
@@ -8118,15 +8141,15 @@ function setupTouchControls() {
         if (!el) continue;
         el.addEventListener('touchstart', (e) => {
             activeFront.n++; input.up = true;
-            el.style.background = 'rgba(59,130,246,0.45)';
-            el.style.borderColor = 'rgba(59,130,246,1)';
+            el.style.borderColor = 'rgba(245,158,11,0.9)';
+            el.style.boxShadow = '0 0 10px rgba(245,158,11,0.6)';
             e.preventDefault(); e.stopPropagation();
         }, { passive: false });
         const releaseFront = (e) => {
             activeFront.n = Math.max(0, activeFront.n - 1);
             if (activeFront.n === 0) input.up = false;
-            el.style.background = '';
             el.style.borderColor = '';
+            el.style.boxShadow = '';
             if (e) { e.preventDefault(); e.stopPropagation(); }
         };
         el.addEventListener('touchend', releaseFront, { passive: false });
@@ -8137,9 +8160,11 @@ function setupTouchControls() {
     const rearBars = ['riser-rear-left', 'riser-rear-right'];
     const rearAmount = { 'riser-rear-left': 0, 'riser-rear-right': 0 };
     function syncRearRiser() {
-        const amt = Math.max(rearAmount['riser-rear-left'], rearAmount['riser-rear-right']);
-        input.rearRiserAmount = amt;
-        input.rearRiser = amt > 0.05;
+        const l = rearAmount['riser-rear-left'], r = rearAmount['riser-rear-right'];
+        input.rearLeftAmt = l;
+        input.rearRightAmt = r;
+        input.rearRiserAmount = Math.max(l, r);
+        input.rearRiser = Math.max(l, r) > 0.05;
     }
     function riserPullDepth(el, clientY) {
         const r = el.getBoundingClientRect();
