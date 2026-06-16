@@ -852,7 +852,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.82 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.83 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -870,9 +870,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.82';
+const APP_VERSION = 'v1.83';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '10:22 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '10:28 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1760,9 +1760,10 @@ function updateMinimap() {
         if (gz > 0 && gz < h) { ctx.beginPath(); ctx.moveTo(0, gz); ctx.lineTo(w, gz); ctx.stroke(); }
     }
 
-    // DZ target (0,0) — red dot
-    const dzX = (0 - px) / scale + w/2;
-    const dzZ = (0 - pz) / scale + h/2;
+    // Landing target (draggable aim point) — red dot
+    const tgt = window._targetPos || { x: 0, z: 0 };
+    const dzX = (tgt.x - px) / scale + w/2;
+    const dzZ = (tgt.z - pz) / scale + h/2;
     if (dzX > -5 && dzX < w+5 && dzZ > -5 && dzZ < h+5) {
         ctx.beginPath();
         ctx.arc(dzX, dzZ, 4, 0, Math.PI * 2);
@@ -2741,10 +2742,12 @@ class PhysicsEngine {
         const P = POS[pos] || POS.belly;
 
         // --- X AXIS: turn (yaw) from the left bar ---
+        // turnIn > 0 = turn RIGHT. (Negated here so left input rotates left and
+        // right input rotates right from the jumper's / camera's point of view.)
         const yawAccel = 5.0;
         const yawMax = P.turnAuth;
         if (Math.abs(turnIn) > 0.04) {
-            this.ffYawRate += turnIn * yawAccel * dt;
+            this.ffYawRate -= turnIn * yawAccel * dt;
         } else {
             this.ffYawRate *= Math.max(0, 1 - 3.0 * dt);
         }
@@ -3121,7 +3124,11 @@ class PhysicsEngine {
 
     getTotalSpeed() { return Math.sqrt(this.velocity.x ** 2 + this.velocity.y ** 2 + this.velocity.z ** 2); }
     getGroundSpeed() { return Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2); }
-    getDistanceFromTarget() { return Math.sqrt(this.position.x ** 2 + this.position.z ** 2); }
+    getDistanceFromTarget() {
+        const t = (typeof window !== 'undefined' && window._targetPos) ? window._targetPos : { x: 0, z: 0 };
+        const dx = this.position.x - t.x, dz = this.position.z - t.z;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
 
     // Airspeed = speed relative to the air mass (subtract wind)
     getAirspeed(wind) {
@@ -3885,26 +3892,55 @@ class SceneManager {
         );
     }
 
+    _groundPoint(e) {
+        const ndc = this._getNDC(e);
+        this.raycaster.setFromCamera(ndc, this.camera);
+        const p = new THREE.Vector3();
+        return this.raycaster.ray.intersectPlane(this.groundPlane, p) ? p : null;
+    }
+
     _onExitPointerDown(e) {
-        if (isRunning) return; // can't move the exit point during flight
+        if (isRunning) return; // can't move markers during flight
         this._exitPointers.add(e.pointerId);
         // A second finger = pinch/two-finger gesture → hand it to OrbitControls (zoom/pan)
         if (this._exitPointers.size > 1) {
             if (this.exitDragging) { this.exitDragging = false; this.orbitControls.enabled = !fpvMode; }
             return;
         }
-        // On desktop only the left button places the exit point; right/middle drag still pans
+        // On desktop only the left button moves markers; right/middle drag still pans
         if (e.pointerType === 'mouse' && e.button !== 0) return;
-        // Tap, click, or drag anywhere on screen → place/move the exit point there
+        // Decide whether the user grabbed the LANDING TARGET or is placing the EXIT point.
+        // Grabbing near the target rings drags the target; anywhere else moves the exit.
+        this.draggingTarget = false;
+        const gp = this._groundPoint(e);
+        if (gp && window._targetPos) {
+            const dx = gp.x - window._targetPos.x, dz = gp.z - window._targetPos.z;
+            const hitR = Math.max(80, (this.landingTargetRadius || 30) * 2.0); // generous grab radius
+            if (Math.sqrt(dx * dx + dz * dz) < hitR) this.draggingTarget = true;
+        }
         this.exitDragging = true;
         this.orbitControls.enabled = false;
-        this._moveExitToPointer(e); // a tap drops the exit point immediately
+        if (this.draggingTarget) this._moveTargetToPointer(e);
+        else this._moveExitToPointer(e); // a tap drops the exit point immediately
         e.preventDefault();
     }
 
     _onExitPointerMove(e) {
         if (!this.exitDragging) return;
-        this._moveExitToPointer(e);
+        if (this.draggingTarget) this._moveTargetToPointer(e);
+        else this._moveExitToPointer(e);
+    }
+
+    _moveTargetToPointer(e) {
+        const p = this._groundPoint(e);
+        if (!p) return;
+        // Clamp the aim point to within 10 miles of the DZ origin
+        const maxDist = 16093;
+        const d = Math.sqrt(p.x * p.x + p.z * p.z);
+        if (d > maxDist) { p.x *= maxDist / d; p.z *= maxDist / d; }
+        window._targetPos.x = p.x;
+        window._targetPos.z = p.z;
+        if (this.landingTargetGroup) this.landingTargetGroup.position.set(p.x, 0, p.z);
     }
 
     _moveExitToPointer(e) {
@@ -3947,6 +3983,7 @@ class SceneManager {
         if (e && e.pointerId !== undefined) this._exitPointers.delete(e.pointerId);
         if (this._exitPointers.size === 0 && this.exitDragging) {
             this.exitDragging = false;
+            this.draggingTarget = false;
             this.orbitControls.enabled = !fpvMode;
         }
     }
@@ -7832,17 +7869,18 @@ function setupTouchControls() {
             background:#f59e0b;border-radius:4px;pointer-events:none;display:none;"></div>
         <!-- Freefall dual-circle controls -->
         <!-- Freefall LEFT bar = TURN (X axis): top = right, bottom = left, center = neutral -->
-        <div id="ff-circle-left" style="position:absolute;left:calc(58px + env(safe-area-inset-left,0px));bottom:90px;width:56px;height:180px;
-            border-radius:28px;border:2px solid rgba(96,165,250,0.5);pointer-events:none;display:none;
-            background:linear-gradient(to top,rgba(96,165,250,0.16),rgba(96,165,250,0.04) 50%,rgba(96,165,250,0.16));
+        <!-- Freefall LEFT control = TURN (X axis), HORIZONTAL: left = turn left, right = turn right -->
+        <div id="ff-circle-left" style="position:absolute;left:calc(12px + env(safe-area-inset-left,0px));bottom:120px;width:calc(30vw - 24px);height:48px;
+            border-radius:24px;border:2px solid rgba(96,165,250,0.5);pointer-events:none;display:none;
+            background:linear-gradient(to right,rgba(96,165,250,0.16),rgba(96,165,250,0.04) 50%,rgba(96,165,250,0.16));
             overflow:hidden;">
-            <div style="position:absolute;top:50%;width:100%;height:2px;background:rgba(255,255,255,0.35);"></div>
-            <div id="ff-dot-left" style="position:absolute;left:50%;transform:translateX(-50%);
-                width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.9);
+            <div style="position:absolute;left:50%;height:100%;width:2px;background:rgba(255,255,255,0.35);"></div>
+            <div id="ff-dot-left" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.9);
                 box-shadow:0 0 12px rgba(255,255,255,0.6);display:none;"></div>
-            <div style="position:absolute;top:4px;width:100%;text-align:center;font-size:8px;color:rgba(147,197,253,0.85);font-family:monospace;pointer-events:none;">▶ R</div>
-            <div style="position:absolute;top:50%;transform:translateY(-50%);width:100%;text-align:center;font-size:7px;color:rgba(255,255,255,0.5);font-family:monospace;pointer-events:none;">TURN</div>
-            <div style="position:absolute;bottom:4px;width:100%;text-align:center;font-size:8px;color:rgba(147,197,253,0.85);font-family:monospace;pointer-events:none;">L ◀</div>
+            <div style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:9px;color:rgba(147,197,253,0.9);font-family:monospace;pointer-events:none;">◀ L</div>
+            <div style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%);font-size:7px;color:rgba(255,255,255,0.5);font-family:monospace;pointer-events:none;">TURN</div>
+            <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:9px;color:rgba(147,197,253,0.9);font-family:monospace;pointer-events:none;">R ▶</div>
         </div>
         <!-- Freefall RIGHT bar = DRIVE (Y axis): top = forward, bottom = back, center = neutral -->
         <div id="ff-circle-right" style="position:absolute;right:calc(58px + env(safe-area-inset-right,0px));bottom:90px;width:56px;height:180px;
@@ -7892,15 +7930,23 @@ function setupTouchControls() {
         }
     }
 
-    // Map screen Y to circle value: bottom of zone = -1 (belly), top = +1 (head-down)
+    // Vertical value for the DRIVE bar (right): top = +1 (forward), bottom = -1 (back)
     function getCircleValue(touchY) {
-        const h = window.innerHeight;
-        // Use the bottom 75% of the screen as the active range
-        // This keeps the controls in comfortable thumb reach
-        const rangeTop = h * 0.15;     // top of range (value = +1)
-        const rangeBot = h * 0.90;     // bottom of range (value = -1)
-        const frac = 1 - Math.max(0, Math.min(1, (touchY - rangeTop) / (rangeBot - rangeTop)));
+        const el = document.getElementById('ff-circle-right');
+        let top, bot;
+        if (el) { const r = el.getBoundingClientRect(); top = r.top; bot = r.bottom; }
+        else { const h = window.innerHeight; top = h * 0.15; bot = h * 0.90; }
+        const frac = 1 - Math.max(0, Math.min(1, (touchY - top) / (bot - top)));
         return frac * 2 - 1; // -1 to +1
+    }
+    // Horizontal value for the TURN bar (left): left = -1, right = +1
+    function getTurnValueX(clientX) {
+        const el = document.getElementById('ff-circle-left');
+        let l, r;
+        if (el) { const b = el.getBoundingClientRect(); l = b.left; r = b.right; }
+        else { l = 12; r = window.innerWidth * 0.3; }
+        const frac = Math.max(0, Math.min(1, (clientX - l) / (r - l)));
+        return frac * 2 - 1; // -1 (left) to +1 (right)
     }
 
     // === CANOPY TOGGLE PROCESSING (unchanged logic, but only runs under canopy) ===
@@ -7939,11 +7985,13 @@ function setupTouchControls() {
         updateIndicator('right', rightY);
     }
 
-    // === FREEFALL CIRCLE PROCESSING ===
-    function processFreefallCircles(side, touchY) {
+    // === FREEFALL CONTROL PROCESSING ===
+    // Left side = TURN (horizontal, uses X). Right side = DRIVE (vertical, uses Y).
+    function processFreefallCircles(side, clientX, clientY) {
         const dc = window._dualCircle;
-        if (touchY !== null) {
-            dc[side + 'Val'] = getCircleValue(touchY);
+        if (clientX !== null && clientY !== null) {
+            if (side === 'left') dc.leftVal = getTurnValueX(clientX);
+            else dc.rightVal = getCircleValue(clientY);
             dc[side + 'Active'] = true;
         } else {
             dc[side + 'Active'] = false;
@@ -7953,12 +8001,12 @@ function setupTouchControls() {
     }
 
     // === PHASE-AWARE TOUCH HANDLER ===
-    function handleSideTouch(side, touchY) {
+    function handleSideTouch(side, clientX, clientY) {
         const isFreefall = physics && physics.phase === 'freefall';
         if (isFreefall) {
-            processFreefallCircles(side, touchY);
+            processFreefallCircles(side, clientX, clientY);
         } else {
-            touches[side] = touchY;
+            touches[side] = clientY; // canopy toggles use vertical depth
             processCanopyTouches();
         }
     }
@@ -7971,7 +8019,7 @@ function setupTouchControls() {
         const dc = window._dualCircle;
         for (const t of e.changedTouches) {
             dc.leftTouchId = t.identifier;
-            handleSideTouch('left', t.clientY);
+            handleSideTouch('left', t.clientX, t.clientY);
         }
         e.preventDefault();
     }, { passive: false });
@@ -7979,7 +8027,7 @@ function setupTouchControls() {
         const dc = window._dualCircle;
         for (const t of e.changedTouches) {
             if (t.identifier === dc.leftTouchId || !dc.leftActive) {
-                handleSideTouch('left', t.clientY);
+                handleSideTouch('left', t.clientX, t.clientY);
             }
         }
         e.preventDefault();
@@ -7989,21 +8037,21 @@ function setupTouchControls() {
         for (const t of e.changedTouches) {
             if (t.identifier === dc.leftTouchId) {
                 dc.leftTouchId = null;
-                handleSideTouch('left', null);
+                handleSideTouch('left', null, null);
             }
         }
         e.preventDefault();
     }, { passive: false });
     leftZone.addEventListener('touchcancel', (e) => {
         window._dualCircle.leftTouchId = null;
-        handleSideTouch('left', null);
+        handleSideTouch('left', null, null);
     });
 
     rightZone.addEventListener('touchstart', (e) => {
         const dc = window._dualCircle;
         for (const t of e.changedTouches) {
             dc.rightTouchId = t.identifier;
-            handleSideTouch('right', t.clientY);
+            handleSideTouch('right', t.clientX, t.clientY);
         }
         e.preventDefault();
     }, { passive: false });
@@ -8011,7 +8059,7 @@ function setupTouchControls() {
         const dc = window._dualCircle;
         for (const t of e.changedTouches) {
             if (t.identifier === dc.rightTouchId || !dc.rightActive) {
-                handleSideTouch('right', t.clientY);
+                handleSideTouch('right', t.clientX, t.clientY);
             }
         }
         e.preventDefault();
@@ -8021,14 +8069,14 @@ function setupTouchControls() {
         for (const t of e.changedTouches) {
             if (t.identifier === dc.rightTouchId) {
                 dc.rightTouchId = null;
-                handleSideTouch('right', null);
+                handleSideTouch('right', null, null);
             }
         }
         e.preventDefault();
     }, { passive: false });
     rightZone.addEventListener('touchcancel', (e) => {
         window._dualCircle.rightTouchId = null;
-        handleSideTouch('right', null);
+        handleSideTouch('right', null, null);
     });
 
     // === FRONT RISERS — simple press to activate (binary dive input) ===
