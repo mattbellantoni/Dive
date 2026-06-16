@@ -181,6 +181,11 @@
         }
         .ctrl-btn.active { background: #f59e0b; }
         .ctrl-btn.flare-active { background: #ef4444; }
+        /* Currently-selected body position: a clear outline, not a "pressed" fill */
+        .ctrl-btn.selected { box-shadow: inset 0 0 0 2px #f59e0b; background: rgba(245,158,11,0.18); }
+        /* Key glyph sits above the label */
+        .ctrl-btn .kc { font-size: 13px; font-weight: 800; line-height: 1; }
+        .ctrl-btn .kl { font-size: 8px; opacity: 0.8; margin-top: 3px; letter-spacing: 0.3px; }
         .ctrl-sep { width: 1px; height: 30px; background: rgba(255,255,255,0.15); }
 
         /* Freefall body-position buttons (flank the PULL button) */
@@ -713,28 +718,30 @@
     </div>
 </div>
 
-<!-- Canopy Controls -->
+<!-- Canopy / Freefall control legend -->
 <div id="canopy-controls">
-    <div class="ctrl-btn" id="ctrl-left">&#x2190;<br><span style="font-size:8px">LEFT</span></div>
-    <div style="display:flex;flex-direction:column;gap:4px;">
-        <div class="ctrl-btn" id="ctrl-up" style="width:44px;height:34px;">&#x2191;<br><span style="font-size:8px">SPD</span></div>
-        <div class="ctrl-btn" id="ctrl-down" style="width:44px;height:34px;">&#x2193;<br><span style="font-size:8px">½ BRK</span></div>
+    <div class="ctrl-btn" id="ctrl-left"><span class="kc">&#x2190;</span><span class="kl">LEFT</span></div>
+    <div style="display:flex;flex-direction:column;gap:4px;" id="cp-updown">
+        <div class="ctrl-btn" id="ctrl-up" style="width:44px;height:34px;"><span class="kc">&#x2191;</span><span class="kl">SPD</span></div>
+        <div class="ctrl-btn" id="ctrl-down" style="width:44px;height:34px;"><span class="kc">&#x2193;</span><span class="kl">&frac12; BRK</span></div>
     </div>
-    <div class="ctrl-btn" id="ctrl-right">&#x2192;<br><span style="font-size:8px">RIGHT</span></div>
+    <div class="ctrl-btn" id="ctrl-right"><span class="kc">&#x2192;</span><span class="kl">RIGHT</span></div>
     <div class="ctrl-sep"></div>
-    <div class="ctrl-btn" id="ctrl-flare" style="width:auto;padding:0 14px;">SPACE<br><span style="font-size:8px">FLARE</span></div>
+    <div class="ctrl-btn" id="ctrl-flare" style="width:auto;padding:0 16px;"><span class="kc">SPACE</span><span class="kl">FLARE</span></div>
+    <!-- Freefall: directional drive (arrows) -->
     <div class="ctrl-sep" id="ff-sep"></div>
     <div style="display:none;flex-direction:column;gap:4px;" id="ff-updown-group">
-        <div class="ctrl-btn" id="ctrl-hd" style="width:44px;height:34px;"
-            onmousedown="setFFDrive(1,true)" onmouseup="setFFDrive(1,false)" onmouseleave="setFFDrive(1,false)"
-            ontouchstart="setFFDrive(1,true)" ontouchend="setFFDrive(1,false)">&#x2191;<br><span style="font-size:8px">FWD</span></div>
-        <div class="ctrl-btn" id="ctrl-sit" style="width:44px;height:34px;"
-            onmousedown="setFFDrive(-1,true)" onmouseup="setFFDrive(-1,false)" onmouseleave="setFFDrive(-1,false)"
-            ontouchstart="setFFDrive(-1,true)" ontouchend="setFFDrive(-1,false)">&#x2193;<br><span style="font-size:8px">BACK</span></div>
+        <div class="ctrl-btn" id="ctrl-ffwd" style="width:44px;height:34px;"><span class="kc">&#x2191;</span><span class="kl">FWD</span></div>
+        <div class="ctrl-btn" id="ctrl-fback" style="width:44px;height:34px;"><span class="kc">&#x2193;</span><span class="kl">BACK</span></div>
     </div>
-    <div style="display:none;flex-direction:column;gap:4px;" id="ff-at-group">
-        <div class="ctrl-btn" id="ctrl-track" style="width:44px;height:34px;" onclick="setFreefallPosition('track')">T<br><span style="font-size:8px">TRACK</span></div>
-        <div class="ctrl-btn" id="ctrl-arch" style="width:44px;height:34px;" onclick="setFreefallPosition('belly')">B<br><span style="font-size:8px">BELLY</span></div>
+    <!-- Freefall: body positions (letter keys) -->
+    <div style="display:none;flex-direction:column;gap:4px;" id="ff-pos-bt">
+        <div class="ctrl-btn" id="ctrl-arch" style="width:44px;height:34px;" onclick="setFreefallPosition('belly')"><span class="kc">B</span><span class="kl">BELLY</span></div>
+        <div class="ctrl-btn" id="ctrl-track" style="width:44px;height:34px;" onclick="setFreefallPosition('track')"><span class="kc">T</span><span class="kl">TRACK</span></div>
+    </div>
+    <div style="display:none;flex-direction:column;gap:4px;" id="ff-pos-sh">
+        <div class="ctrl-btn" id="ctrl-sit" style="width:44px;height:34px;" onclick="setFreefallPosition('sitfly')"><span class="kc">S</span><span class="kl">SIT</span></div>
+        <div class="ctrl-btn" id="ctrl-hd" style="width:44px;height:34px;" onclick="setFreefallPosition('headdown')"><span class="kc">H</span><span class="kl">HEAD DN</span></div>
     </div>
 </div>
 
@@ -862,7 +869,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.91 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.92 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -880,9 +887,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.91';
+const APP_VERSION = 'v1.92';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:04 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:22 AM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1164,12 +1171,48 @@ function moonInfo(date) {
     return { age, illum, phaseName: names[idx] };
 }
 
-// Approximate timezone offset (hours east of UTC) from longitude
-function tzOffsetFromLng(lng) { return Math.round((lng || 0) / 15); }
+// Approximate geocentric Moon position → local altitude/azimuth (good to ~1°).
+// Low-precision lunar theory (Meeus, simplified) then equatorial → horizontal.
+function moonPosition(date, lat, lng) {
+    const rad = Math.PI / 180, deg = 180 / Math.PI;
+    const jd = date.getTime() / 86400000 + 2440587.5;
+    const d = jd - 2451545.0;
+    const Lp = (218.316 + 13.176396 * d) * rad;   // mean longitude
+    const M  = (134.963 + 13.064993 * d) * rad;   // mean anomaly
+    const F  = (93.272 + 13.229350 * d) * rad;    // argument of latitude
+    const lambda = Lp + 6.289 * rad * Math.sin(M);            // ecliptic longitude
+    const beta   = 5.128 * rad * Math.sin(F);                 // ecliptic latitude
+    const eps = 23.439 * rad;
+    const dec = Math.asin(Math.sin(beta) * Math.cos(eps) + Math.cos(beta) * Math.sin(eps) * Math.sin(lambda));
+    const ra  = Math.atan2(Math.sin(lambda) * Math.cos(eps) - Math.tan(beta) * Math.sin(eps), Math.cos(lambda));
+    const gmst = (((280.46061837 + 360.98564736629 * d) % 360) + 360) % 360;
+    const lst = (gmst + lng) * rad;
+    const H = lst - ra;
+    const latr = lat * rad;
+    const alt = Math.asin(Math.sin(latr) * Math.sin(dec) + Math.cos(latr) * Math.cos(dec) * Math.cos(H));
+    let az = Math.atan2(-Math.sin(H), Math.tan(dec) * Math.cos(latr) - Math.sin(latr) * Math.cos(H));
+    az = ((az * deg) % 360 + 360) % 360;
+    return { altitude: alt * deg, azimuth: az };
+}
+
+// Approximate timezone offset (hours east of UTC) from longitude, with a rough
+// Daylight Saving Time correction so summer local clocks aren't an hour behind.
+function tzOffsetFromLng(lng, lat) {
+    let off = Math.round((lng || 0) / 15);
+    // Temperate zones generally observe DST (+1h in their local summer).
+    const L = (lat != null ? lat : (typeof selectedDZ !== 'undefined' && selectedDZ ? selectedDZ.lat : 0)) || 0;
+    if (Math.abs(L) >= 24 && Math.abs(L) <= 67) {
+        const m = new Date().getUTCMonth(); // 0 = Jan
+        // Northern summer DST ≈ mid-Mar → early-Nov (months 2–10); Southern ≈ Oct–Mar
+        const dst = L >= 0 ? (m >= 2 && m <= 10) : (m <= 2 || m >= 10);
+        if (dst) off += 1;
+    }
+    return off;
+}
 
 // Build a UTC Date for a given clock time (minutes-of-day, local at the DZ)
-function dzLocalToUTC(minutesOfDay, lng) {
-    const tz = tzOffsetFromLng(lng);
+function dzLocalToUTC(minutesOfDay, lng, lat) {
+    const tz = tzOffsetFromLng(lng, lat);
     const now = new Date();
     const ms = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0)
         + (minutesOfDay - tz * 60) * 60000;
@@ -1177,9 +1220,9 @@ function dzLocalToUTC(minutesOfDay, lng) {
 }
 
 // Current local clock time at the DZ, in minutes-of-day
-function dzLocalNowMinutes(lng) {
+function dzLocalNowMinutes(lng, lat) {
     const now = new Date();
-    let mins = now.getUTCHours() * 60 + now.getUTCMinutes() + tzOffsetFromLng(lng) * 60;
+    let mins = now.getUTCHours() * 60 + now.getUTCMinutes() + tzOffsetFromLng(lng, lat) * 60;
     return ((mins % 1440) + 1440) % 1440;
 }
 
@@ -3374,12 +3417,32 @@ class SceneManager {
         this.starfield.visible = false;
         this.scene.add(this.starfield);
 
-        // ---- MOON DISC ---- simple bright sphere placed far in the sky
-        const moonGeo = new THREE.SphereGeometry(140, 16, 16);
+        // ---- MOON DISC ---- bright sphere placed at the Moon's real sky position
+        const moonGeo = new THREE.SphereGeometry(150, 20, 20);
         const moonMat = new THREE.MeshBasicMaterial({ color: 0xf2f4ff, transparent: true, opacity: 0, fog: false });
         this.moonMesh = new THREE.Mesh(moonGeo, moonMat);
         this.moonMesh.visible = false;
         this.scene.add(this.moonMesh);
+
+        // ---- SUN DISC ---- glowing sphere at the Sun's real sky position (+ soft glow sprite)
+        const sunGeo = new THREE.SphereGeometry(190, 24, 24);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0, fog: false });
+        this.sunMesh = new THREE.Mesh(sunGeo, sunMat);
+        this.sunMesh.visible = false;
+        this.scene.add(this.sunMesh);
+        // Glow halo (canvas radial-gradient sprite)
+        const gcvs = document.createElement('canvas'); gcvs.width = gcvs.height = 128;
+        const gctx = gcvs.getContext('2d');
+        const gg = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gg.addColorStop(0, 'rgba(255,240,190,0.9)');
+        gg.addColorStop(0.25, 'rgba(255,220,150,0.45)');
+        gg.addColorStop(1, 'rgba(255,210,140,0)');
+        gctx.fillStyle = gg; gctx.fillRect(0, 0, 128, 128);
+        const sunGlowMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(gcvs), transparent: true, opacity: 0, depthWrite: false, fog: false, blending: THREE.AdditiveBlending });
+        this.sunGlow = new THREE.Sprite(sunGlowMat);
+        this.sunGlow.scale.set(1400, 1400, 1);
+        this.sunGlow.visible = false;
+        this.scene.add(this.sunGlow);
     }
 
     applyGroundTint() {
@@ -3405,10 +3468,11 @@ class SceneManager {
         const cloud = clamp(window._cloudCover != null ? window._cloudCover : 0.2, 0, 1);
         const lp = clamp(window._lightPollution != null ? window._lightPollution : 0.3, 0, 1);
 
-        const date = dzLocalToUTC(mins, lng);
+        const date = dzLocalToUTC(mins, lng, lat);
         const sun = solarPosition(date, lat, lng);
-        const moon = moonInfo(new Date());
-        this._sun = sun; this._moon = moon;
+        const moon = moonInfo(date);                  // illuminated fraction / phase
+        const moonPos = moonPosition(date, lat, lng); // real sky position (alt/az)
+        this._sun = sun; this._moon = moon; this._moonPos = moonPos;
         const alt = sun.altitude;
 
         // Day/night factors
@@ -3439,17 +3503,34 @@ class SceneManager {
         this.skyMesh.material.uniforms.bottomColor.value.copy(bot);
         if (this.scene.fog) this.scene.fog.color.copy(bot);
 
-        // ---- SUN DIRECTIONAL LIGHT ----
-        const azr = sun.azimuth * Math.PI / 180, altr = alt * Math.PI / 180;
-        const sx = Math.cos(altr) * Math.sin(azr);
-        const sy = Math.sin(altr);
-        const sz = Math.cos(altr) * Math.cos(azr);
+        // Sky-direction unit vector from an altitude/azimuth (deg). World: +Z=N, +X=E.
+        const dirFromAltAz = (altDeg, azDeg) => {
+            const a = altDeg * Math.PI / 180, z = azDeg * Math.PI / 180;
+            return { x: Math.cos(a) * Math.sin(z), y: Math.sin(a), z: Math.cos(a) * Math.cos(z) };
+        };
+
+        // ---- SUN: directional light + visible disc at its real sky position ----
+        const sd = dirFromAltAz(alt, sun.azimuth);
+        const sx = sd.x, sy = sd.y, sz = sd.z;
         if (this.dirLight) {
             this.dirLight.position.set(sx * 2000, Math.max(sy, 0.02) * 2000, sz * 2000);
-            let sunInt = clamp((alt + 1) / 10, 0, 1) * 1.05 * (1 - cloud * 0.7);
-            this.dirLight.intensity = sunInt;
+            this.dirLight.intensity = clamp((alt + 1) / 10, 0, 1) * 1.05 * (1 - cloud * 0.7);
             const warm = new THREE.Color(0xffb066), white = new THREE.Color(0xfff6e8);
             this.dirLight.color.copy(warm).lerp(white, clamp(alt / 15, 0, 1));
+        }
+        if (this.sunMesh) {
+            const up = alt > -1.5; // visible while above (or just below) the horizon
+            this.sunMesh.visible = up;
+            if (this.sunGlow) this.sunGlow.visible = up;
+            if (up) {
+                const D = 6800;
+                this.sunMesh.position.set(sx * D, sy * D, sz * D);
+                if (this.sunGlow) this.sunGlow.position.copy(this.sunMesh.position);
+                const warmDisc = new THREE.Color(0xff8a3a), highDisc = new THREE.Color(0xfff4d0);
+                this.sunMesh.material.color.copy(warmDisc).lerp(highDisc, clamp(alt / 12, 0, 1));
+                this.sunMesh.material.opacity = (1 - cloud * 0.85);
+                if (this.sunGlow) this.sunGlow.material.opacity = (0.5 + clamp(1 - alt / 20, 0, 1) * 0.5) * (1 - cloud * 0.9);
+            }
         }
 
         // ---- AMBIENT ----
@@ -3459,20 +3540,25 @@ class SceneManager {
             this.ambLight.color.copy(new THREE.Color(0x32405e)).lerp(new THREE.Color(0xbfd4ff), day);
         }
 
-        // ---- MOONLIGHT (cool night fill) + MOON DISC ----
-        // Crude position: roughly opposite the sun, lifted above the horizon at night.
-        const moonUp = clamp(0.15 + darkness * 0.6, 0, 1);
-        const mx = -sx, mz = -sz, my = moonUp;
+        // ---- MOON: real sky position, phase-scaled brightness + cool fill light ----
+        const mAlt = moonPos.altitude;
+        const md0 = dirFromAltAz(mAlt, moonPos.azimuth);
+        const moonAbove = mAlt > -1.5;
         if (this.moonLight) {
-            this.moonLight.intensity = moon.illum * darkness * 0.5 * (1 - cloud * 0.6);
-            this.moonLight.position.set(mx * 2000, my * 2000, mz * 2000);
+            // Moonlight only when the Moon is actually up; scaled by phase + darkness
+            const up = moonAbove ? clamp((mAlt + 2) / 12, 0, 1) : 0;
+            this.moonLight.intensity = moon.illum * darkness * up * 0.5 * (1 - cloud * 0.6);
+            this.moonLight.position.set(md0.x * 2000, Math.max(md0.y, 0.02) * 2000, md0.z * 2000);
         }
         if (this.moonMesh) {
-            const moonVis = darkness * (1 - cloud * 0.8);
-            this.moonMesh.material.opacity = clamp(0.3 + moon.illum * 0.7, 0, 1) * clamp(moonVis, 0, 1);
-            this.moonMesh.visible = moonVis > 0.03;
-            const md = 6500;
-            this.moonMesh.position.set(mx * md, Math.max(0.08, my) * md, mz * md);
+            this.moonMesh.visible = moonAbove && (1 - cloud * 0.85) > 0.05;
+            if (this.moonMesh.visible) {
+                const D = 6500;
+                this.moonMesh.position.set(md0.x * D, md0.y * D, md0.z * D);
+                // Brighter at night, faintly visible by day; fuller phase = brighter
+                this.moonMesh.material.opacity = clamp(0.25 + moon.illum * 0.75, 0, 1)
+                    * (0.4 + darkness * 0.6) * (1 - cloud * 0.85);
+            }
         }
 
         // ---- STARS ----
@@ -7063,41 +7149,37 @@ class UIController {
         const hintEl = document.getElementById('key-hints');
         if (hintEl) hintEl.style.display = showControls ? 'block' : 'none';
 
-        // Update control labels based on phase
-        if (showFreefallUI) {
-            this.el.ctrlUp.innerHTML = '&#x2191;<br><span style="font-size:8px">HD</span>';
-            this.el.ctrlDown.innerHTML = '&#x2193;<br><span style="font-size:8px">SIT</span>';
-            this.el.ctrlLeft.innerHTML = '&#x2190;<br><span style="font-size:8px">LEFT</span>';
-            this.el.ctrlRight.innerHTML = '&#x2192;<br><span style="font-size:8px">RIGHT</span>';
-            this.el.ctrlFlare.innerHTML = 'P<br><span style="font-size:8px">PULL</span>';
+        // The PULL/FLARE button: PULL (P) in freefall, FLARE (Space) under canopy
+        if (this.el.ctrlFlare) {
+            this.el.ctrlFlare.innerHTML = showFreefallUI
+                ? '<span class="kc">P</span><span class="kl">PULL</span>'
+                : '<span class="kc">SPACE</span><span class="kl">FLARE</span>';
         }
         // Hide any old stability HUD if present
         const oldStabHud = document.getElementById('stability-hud');
         if (oldStabHud) oldStabHud.style.display = 'none';
-        if (showCanopyUI) {
-            this.el.ctrlUp.innerHTML = '&#x2191;<br><span style="font-size:8px">SPD</span>';
-            this.el.ctrlDown.innerHTML = '&#x2193;<br><span style="font-size:8px">½ BRK</span>';
-            this.el.ctrlLeft.innerHTML = '&#x2190;<br><span style="font-size:8px">LEFT</span>';
-            this.el.ctrlRight.innerHTML = '&#x2192;<br><span style="font-size:8px">RIGHT</span>';
-            this.el.ctrlFlare.innerHTML = 'SPACE<br><span style="font-size:8px">FLARE</span>';
-        }
 
-        // Show/hide freefall-specific button groups
+        // Swap button groups by phase:
+        //  Canopy   → SPD / ½BRK riser+brake column
+        //  Freefall → directional drive (FWD/BACK) + body-position keys (B/T/S/H)
+        const cpUpDown = document.getElementById('cp-updown');
         const ffSep = document.getElementById('ff-sep');
         const ffUpDown = document.getElementById('ff-updown-group');
-        const ffAT = document.getElementById('ff-at-group');
-        if (ffSep && ffUpDown && ffAT) {
-            const ffShow = showFreefallUI ? 'flex' : 'none';
-            ffSep.style.display = ffShow;
-            ffUpDown.style.display = ffShow;
-            ffAT.style.display = ffShow;
-            if (showFreefallUI) {
-                const pos = state.bodyPosition || 'belly';
-                document.getElementById('ctrl-arch').className = 'ctrl-btn' + (pos === 'belly' ? ' active' : '');
-                document.getElementById('ctrl-track').className = 'ctrl-btn' + (pos === 'track' ? ' active' : '');
-                document.getElementById('ctrl-hd').className = 'ctrl-btn' + (input.up ? ' active' : '');
-                document.getElementById('ctrl-sit').className = 'ctrl-btn' + (input.down ? ' active' : '');
-            }
+        const ffPosBT = document.getElementById('ff-pos-bt');
+        const ffPosSH = document.getElementById('ff-pos-sh');
+        const ffShow = showFreefallUI ? 'flex' : 'none';
+        if (cpUpDown) cpUpDown.style.display = showCanopyUI ? 'flex' : 'none';
+        if (ffSep) ffSep.style.display = ffShow;
+        if (ffUpDown) ffUpDown.style.display = ffShow;
+        if (ffPosBT) ffPosBT.style.display = ffShow;
+        if (ffPosSH) ffPosSH.style.display = ffShow;
+        if (showFreefallUI) {
+            const pos = state.bodyPosition || 'belly';
+            const sel = (id, on) => { const e = document.getElementById(id); if (e) e.className = 'ctrl-btn' + (on ? ' selected' : ''); };
+            sel('ctrl-arch', pos === 'belly');
+            sel('ctrl-track', pos === 'track');
+            sel('ctrl-sit', pos === 'sitfly');
+            sel('ctrl-hd', pos === 'headdown');
         }
 
         // Compass removed — heading is in HUD bar
@@ -8340,8 +8422,9 @@ function setupTouchControls() {
         if (depthL) depthL.style.display = isCanopy ? 'block' : 'none';
         if (depthR) depthR.style.display = isCanopy ? 'block' : 'none';
         // Freefall body-position buttons (flank the PULL button)
+        // Flank position buttons are a mobile control; desktop uses the legend bar + keys
         document.querySelectorAll('.ff-pos-btn').forEach(b => {
-            b.style.display = isFreefall ? 'flex' : 'none';
+            b.style.display = (isFreefall && window.isMobileDevice) ? 'flex' : 'none';
         });
         ['riser-front-left','riser-front-right','riser-rear-left','riser-rear-right'].forEach(id => {
             const el = document.getElementById(id);
@@ -8460,7 +8543,7 @@ function updateEnvironmentFromUI() {
     const lat = selectedDZ ? selectedDZ.lat : 0;
     const lng = selectedDZ ? selectedDZ.lng : 0;
     let sunAlt = 0;
-    try { sunAlt = solarPosition(dzLocalToUTC(t, lng), lat, lng).altitude; } catch (e) {}
+    try { sunAlt = solarPosition(dzLocalToUTC(t, lng, lat), lat, lng).altitude; } catch (e) {}
     document.getElementById('time-of-day-val').textContent = timeOfDayLabel(t, sunAlt);
     if (cEl) document.getElementById('cloud-cover-val').textContent = cc + '%';
     if (lEl) document.getElementById('light-pollution-val').textContent = lp + '%';
@@ -8472,7 +8555,8 @@ function updateEnvironmentFromUI() {
 //  • force = false → only set local time if the user hasn't picked a time (boot restore)
 function setDefaultTimeForDZ(lng, force) {
     if (!force && window._timeUserSet) { updateEnvironmentFromUI(); return; }
-    const mins = dzLocalNowMinutes(lng);
+    const lat = selectedDZ ? selectedDZ.lat : 0;
+    const mins = dzLocalNowMinutes(lng, lat);
     window._timeOfDayMinutes = mins;
     window._timeUserSet = false; // back to auto until the user drags the slider again
     const el = document.getElementById('time-of-day');
