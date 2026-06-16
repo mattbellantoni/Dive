@@ -856,7 +856,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.86 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.87 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -874,9 +874,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.86';
+const APP_VERSION = 'v1.87';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:16 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '11:24 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -6970,7 +6970,12 @@ class SceneManager {
     }
 
     render() {
-        if (!fpvMode && !window._cameraFlipped) this.orbitControls.update();
+        // During the freefall heading-lock, the camera is driven manually (overhead,
+        // rotated with the jumper's heading) — skip OrbitControls.update() so it doesn't
+        // overwrite our up-vector/position and the ground can twist beneath the jumper.
+        const ffLock = (typeof physics !== 'undefined' && physics &&
+            physics.phase === 'freefall' && !this._userCamOverride && !fpvMode);
+        if (!fpvMode && !window._cameraFlipped && !ffLock) this.orbitControls.update();
         // Keep sky sphere centered on camera so it never clips
         if (this.skyMesh) this.skyMesh.position.copy(this.camera.position);
         this.renderer.render(this.scene, this.camera);
