@@ -624,10 +624,10 @@
     <div class="control-group">
         <label><span>Units</span></label>
         <select id="unit-system" style="width:100%;padding:6px 8px;border-radius:6px;background:#1e293b;color:#e2e8f0;border:1px solid #475569;font-size:12px;">
-            <option value="imperial" selected>Imperial — ft, mph, lbs</option>
-            <option value="metric">Metric — m, km/h, kg</option>
+            <option value="imperial" selected>Imperial — ft, fpm, lbs</option>
+            <option value="metric">Metric — m, m/s, kg</option>
         </select>
-        <div style="font-size:9px;opacity:0.5;margin-top:3px;">Canopy speeds &amp; winds aloft stay in knots.</div>
+        <div style="font-size:9px;opacity:0.5;margin-top:3px;">Air &amp; ground speeds stay in knots.</div>
     </div>
     <hr>
     <h3>Jumper Setup</h3>
@@ -938,7 +938,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.20 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.21 &middot; Jun 15, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -976,9 +976,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.20';
+const APP_VERSION = 'v2.21';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '3:35 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '3:50 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -7457,12 +7457,11 @@ class UIController {
 
     update(state, wind, canopyPerf, cameraAzimuth) {
         this.cameraAzimuth = cameraAzimuth || 0;
-        // Canopy ground/air speeds ALWAYS in KNOTS (matches winds-aloft so ground =
-        // airspeed ± wind reads directly). Freefall/other speeds follow the unit system
-        // (mph imperial / km/h metric). Altitude & descent follow the unit system too.
-        const canopyUnits = (state.phase === 'canopy' || state.phase === 'deploying');
-        const spdConv = canopyUnits ? CONFIG.MPS_TO_KTS : horizSpeedConv();
-        const spdUnit = canopyUnits ? 'kt' : horizSpeedUnit();
+        // Horizontal airspeed & ground speed are ALWAYS in KNOTS — both freefall and
+        // canopy, both unit systems — matching winds aloft / aviation convention.
+        // (Altitude, descent, weight & distance still follow the unit system.)
+        const spdConv = CONFIG.MPS_TO_KTS;
+        const spdUnit = 'kt';
         const groundSpeedMph = Math.round(state.getGroundSpeed() * spdConv);
         const airspeedMph = Math.round(state.getHorizontalAirspeed(wind) * spdConv);
 
