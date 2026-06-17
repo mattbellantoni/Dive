@@ -462,6 +462,34 @@
             /* stability-hud removed */
             #mobile-start-btn { bottom: 10px; padding: 12px 30px; font-size: 16px; }
         }
+
+        /* ===== Flare toggle gauge (hold SPACE / flare to meter the flare) ===== */
+        #flare-gauge {
+            position: fixed; right: 14px; top: 50%; transform: translateY(-50%);
+            z-index: 240; display: none; pointer-events: none;
+            font: 600 9px/1 system-ui, sans-serif; color: #cdd8ea; text-align: center;
+        }
+        #flare-gauge .fg-title { color: #22c55e; letter-spacing: 1px; margin-bottom: 5px; }
+        #flare-gauge .fg-wrap { position: relative; display: inline-block; }
+        #flare-gauge .fg-track {
+            position: relative; width: 16px; height: 150px; margin: 0 auto;
+            background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.28);
+            border-radius: 9px; overflow: hidden;
+        }
+        #flare-gauge .fg-fill {
+            position: absolute; left: 0; top: 0; width: 100%; height: 0%;
+            background: linear-gradient(#34d399, #15803d);
+        }
+        #flare-gauge .fg-marker {
+            position: absolute; left: -3px; width: 22px; height: 3px; top: 0%;
+            background: #fff; box-shadow: 0 0 5px rgba(0,0,0,0.9); transform: translateY(-1.5px);
+        }
+        #flare-gauge .fg-tick { position: absolute; left: 0; width: 100%; height: 1px; background: rgba(255,255,255,0.35); }
+        #flare-gauge .fg-marks { position: absolute; left: 20px; top: 0; height: 150px; width: 30px; }
+        #flare-gauge .fg-marks span {
+            position: absolute; left: 0; transform: translateY(-50%);
+            font-size: 8px; color: rgba(255,255,255,0.6); white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -756,7 +784,7 @@
     <div class="ctrl-btn" id="ctrl-left"><span class="kc">&#x2190;</span><span class="kl">LEFT</span></div>
     <div style="display:flex;flex-direction:column;gap:4px;" id="cp-updown">
         <div class="ctrl-btn" id="ctrl-up" style="width:44px;height:34px;"><span class="kc">&#x2191;</span><span class="kl">SPD</span></div>
-        <div class="ctrl-btn" id="ctrl-down" style="width:44px;height:34px;"><span class="kc">&#x2193;</span><span class="kl">&frac12; BRK</span></div>
+        <div class="ctrl-btn" id="ctrl-down" style="width:44px;height:34px;"><span class="kc">&#x2193;</span><span class="kl">REAR</span></div>
     </div>
     <div class="ctrl-btn" id="ctrl-right"><span class="kc">&#x2192;</span><span class="kl">RIGHT</span></div>
     <div class="ctrl-sep"></div>
@@ -902,7 +930,27 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.16 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.19 &middot; Jun 15, 2026</div>
+
+<!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
+<div id="flare-gauge">
+    <div class="fg-title">FLARE</div>
+    <div class="fg-wrap">
+        <div class="fg-track">
+            <div class="fg-fill"></div>
+            <div class="fg-tick" style="top:25%"></div>
+            <div class="fg-tick" style="top:50%"></div>
+            <div class="fg-tick" style="top:75%"></div>
+            <div class="fg-marker"></div>
+        </div>
+        <div class="fg-marks">
+            <span style="top:25%">&frac14;</span>
+            <span style="top:50%">&frac12;</span>
+            <span style="top:75%">&frac34;</span>
+            <span style="top:100%">FULL</span>
+        </div>
+    </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -920,9 +968,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.16';
+const APP_VERSION = 'v2.19';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '9:38 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '12:05 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1344,6 +1392,19 @@ function initDZMap() {
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19
     }).addTo(dzMap);
+
+    // Leaflet renders GRAY tiles whenever its container is resized without being told
+    // (classic cause of a gray map after rotating to landscape). Re-measure on every
+    // viewport change + once after the initial layout settles.
+    const invalidateDZMap = () => { try { if (dzMap) dzMap.invalidateSize(false); } catch (e) {} };
+    window.addEventListener('resize', invalidateDZMap);
+    window.addEventListener('orientationchange', () => {
+        setTimeout(invalidateDZMap, 100);
+        setTimeout(invalidateDZMap, 400);
+    });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', invalidateDZMap);
+    setTimeout(invalidateDZMap, 300);
+    setTimeout(invalidateDZMap, 800);
 
     dzMap.on('click', (e) => {
         const { lat, lng } = e.latlng;
@@ -3052,6 +3113,9 @@ class PhysicsEngine {
         } else {
             this.flareTimer = Math.max((this.flareTimer || 0) - dt * 2, 0);
         }
+        // Flare depth ramps 0→1 over 2s of held space: ¼ @0.5s, ½ @1s, ¾ @1.5s, FULL @2s.
+        // Drives the on-screen toggle gauge so the pilot can meter the flare.
+        this.flareDepth = Math.min((this.flareTimer || 0) / 2, 1);
 
         // Forward speed = base * speed input + dive component from turns
         const fwdSpeed = baseFwd * speedRatio + this.diveSpeed;
@@ -3358,6 +3422,19 @@ class SceneManager {
             this.groundDetail.material.transparent = true;
             this.groundDetail.material.opacity = 0;
             this.groundDetail.material.needsUpdate = true;
+
+            // ---- TRUE-SCALE the satellite ground so 1 world metre = 1 real metre ----
+            // Web Mercator tile coverage shrinks with latitude (× cos lat). The geometry
+            // is a fixed 25 km / 5 km plane, so without this the imagery is magnified by
+            // 1/cos(lat) and the ground appears to scroll too SLOWLY for the real ground
+            // speed (e.g. ~35% slow at 41° latitude). Scale the planes to the imagery's
+            // true ground coverage: pixels × (156543.034 / 2^zoom) × cos(lat).
+            const cosLat = Math.cos((lat || 0) * Math.PI / 180);
+            const wideTrueM   = 2560 * (156543.03392 / Math.pow(2, 14)) * cosLat;
+            const detailTrueM = 4096 * (156543.03392 / Math.pow(2, 17)) * cosLat;
+            if (this.groundWideSize)   this.groundWide.scale.set(wideTrueM / this.groundWideSize, wideTrueM / this.groundWideSize, 1);
+            if (this.groundDetailSize) this.groundDetail.scale.set(detailTrueM / this.groundDetailSize, detailTrueM / this.groundDetailSize, 1);
+
             // Re-apply the current time-of-day tint over the fresh white textures
             if (this.applyGroundTint) this.applyGroundTint();
 
@@ -3976,9 +4053,8 @@ class SceneManager {
         );
         glow.rotation.x = -Math.PI / 2; glow.position.set(3, 0.4, 0);
         this.dzFlare.add(glow); this.dzFlareGlow = glow;
-        // Red light cast on the ground
-        const flareLight = new THREE.PointLight(0xff3018, 0, 120, 2);
-        flareLight.position.set(3, 3, 0); this.dzFlare.add(flareLight); this.dzFlareLight = flareLight;
+        // NOTE: no PointLight — the additive glow plane reads as a lit flare without
+        // adding a scene light (extra lights bloat shaders → iOS WebGL context loss).
         this.dzFlare.visible = false;
         this.landingTargetGroup.add(this.dzFlare);
 
@@ -4841,11 +4917,9 @@ class SceneManager {
             m.visible = false;
             parent.add(m);
             this.glowSticks.push(m);
-            // soft colored glow around each chemlight
-            const gl = new THREE.PointLight(color, 0, 6);
-            gl.position.copy(m.position);
-            parent.add(gl);
-            m.userData.light = gl;
+            // NOTE: no PointLight here — MeshBasic is self-lit. Extra PointLights bloat
+            // every material's shader and on iOS WebViews can trigger a WebGL context
+            // loss (gray screen) after rotating. The bright mesh is enough.
             return m;
         };
         // Green on the arms, red on the legs — classic chemlight layout
@@ -4863,10 +4937,6 @@ class SceneManager {
         strobe.visible = false;
         this.skydiver.add(strobe);
         this.strobe = strobe;
-        const strobeLight = new THREE.PointLight(0xffffff, 0, 40);
-        strobeLight.position.set(0, 1.4, 0.04);
-        this.skydiver.add(strobeLight);
-        this.strobeLight = strobeLight;
         this._strobePhase = 0;
 
         // Animation state for smooth transitions
@@ -4891,14 +4961,13 @@ class SceneManager {
         if (!this.dzFlare) return;
         const night = this.isNightJump();
         if (this.dzFlare.visible !== night) this.dzFlare.visible = night;
-        if (!night) { if (this.dzFlareLight) this.dzFlareLight.intensity = 0; return; }
+        if (!night) return;
         this._flareT = (this._flareT || 0) + (dt || 0.016);
         const t = this._flareT;
         const flick = 0.8 + 0.2 * Math.sin(t * 17) + 0.1 * Math.sin(t * 31.3);
         if (this.dzFlame) { this.dzFlame.scale.set(1, flick, 1); this.dzFlame.material.opacity = 0.85 + 0.12 * Math.sin(t * 23); }
         if (this.dzFlameCore) this.dzFlameCore.scale.set(1, 0.9 + 0.2 * Math.sin(t * 27), 1);
         if (this.dzFlareGlow) { const s = 1 + 0.12 * Math.sin(t * 11); this.dzFlareGlow.scale.set(s, s, 1); }
-        if (this.dzFlareLight) this.dzFlareLight.intensity = 2.6 + 0.8 * Math.sin(t * 19);
     }
 
     // Show/animate the required night-jump lighting based on flight phase.
@@ -4907,24 +4976,19 @@ class SceneManager {
         // Chemlights: lit the whole night skydive so others can spot the jumper in freefall.
         const glowOn = night && (phase === 'freefall' || phase === 'deploying' || phase === 'canopy');
         if (this.glowSticks) {
-            for (const g of this.glowSticks) {
-                g.visible = glowOn;
-                if (g.userData.light) g.userData.light.intensity = glowOn ? 0.6 : 0;
-            }
+            for (const g of this.glowSticks) g.visible = glowOn;
         }
         // Strobe: FAR 105.19 requires it from open canopy until landing. We also run it
         // during deployment for realism. It blinks ~1.4 Hz.
         const strobeActive = night && (phase === 'deploying' || phase === 'canopy');
-        if (this.strobe && this.strobeLight) {
+        if (this.strobe) {
             if (strobeActive) {
                 this._strobePhase += dt;
                 const on = (this._strobePhase % 0.7) < 0.09; // brief bright flash
                 this.strobe.visible = true;
                 this.strobe.material.color.setHex(on ? 0xffffff : 0x223044);
-                this.strobeLight.intensity = on ? 6 : 0;
             } else {
                 this.strobe.visible = false;
-                this.strobeLight.intensity = 0;
             }
         }
     }
@@ -4936,6 +5000,10 @@ class SceneManager {
         // top & bottom skins converge to a closed trailing edge
         this.canopyGroup = new THREE.Group();
         this.canopyGroup.visible = false;
+        // Yaw (heading) must be applied BEFORE pitch/roll so that pitch tips the nose
+        // along the canopy's own heading (front riser = nose dips forward) rather than
+        // about the world X axis. Default 'XYZ' order made pitch wrong at ±90° headings.
+        this.canopyGroup.rotation.order = 'YXZ';
 
         const cells = 9;
         const totalSpan = 10;
@@ -7385,6 +7453,19 @@ class UIController {
         const headingDeg = jumperForwardVec(state.phase, rawHeading).bearing;
         this.drawHeadingTape(headingDeg, state.phase !== 'aircraft' && state.phase !== 'landed');
 
+        // Flare gauge: marker + fill track the flare depth (0→1 over 2s of held flare)
+        const fg = document.getElementById('flare-gauge');
+        if (fg) {
+            const depth = state.flareDepth || 0;
+            const showFlare = state.phase === 'canopy' && (depth > 0.001 || state._inputFlare);
+            fg.style.display = showFlare ? 'block' : 'none';
+            if (showFlare) {
+                const pct = (depth * 100).toFixed(1) + '%';
+                const fill = fg.querySelector('.fg-fill'); if (fill) fill.style.height = pct;
+                const mk = fg.querySelector('.fg-marker'); if (mk) mk.style.top = pct;
+            }
+        }
+
         const phaseNames = { aircraft:'AIRCRAFT', freefall:'FREEFALL', deploying:'DEPLOYING', canopy:'CANOPY', landed:'LANDED' };
         this.el.phase.textContent = phaseNames[state.phase];
         this.el.phase.className = `phase-${state.phase}`;
@@ -7556,7 +7637,7 @@ class UIController {
         this.el.ctrlLeft.classList.toggle('active', input.left);
         this.el.ctrlRight.classList.toggle('active', input.right);
         this.el.ctrlUp.classList.toggle('active', input.up);
-        this.el.ctrlDown.classList.toggle('active', input.down);
+        this.el.ctrlDown.classList.toggle('active', input.down || input.rearRiser);
         this.el.ctrlFlare.classList.toggle('flare-active', input.flare);
     }
 
@@ -8125,7 +8206,12 @@ function setupInputHandlers() {
             case 'ArrowLeft':  input.left = true; e.preventDefault(); break;
             case 'ArrowRight': input.right = true; e.preventDefault(); break;
             case 'ArrowUp':    input.up = true; e.preventDefault(); break;
-            case 'ArrowDown':  input.down = true; e.preventDefault(); break;
+            case 'ArrowDown':
+                // Under canopy the Down arrow is the REAR RISER (flatten glide / flat turn);
+                // in freefall it still leans the body back. (Mobile uses input.down separately.)
+                if (physics && (physics.phase === 'canopy' || physics.phase === 'deploying')) input.rearRiser = true;
+                else input.down = true;
+                e.preventDefault(); break;
             case ' ':          input.flare = true; e.preventDefault(); break;
             case 'p': case 'P': input.deploy = true; break;
             case 'r': case 'R': input.rearRiser = true; break;
@@ -8150,7 +8236,7 @@ function setupInputHandlers() {
             case 'ArrowLeft':  input.left = false; break;
             case 'ArrowRight': input.right = false; break;
             case 'ArrowUp':    input.up = false; break;
-            case 'ArrowDown':  input.down = false; break;
+            case 'ArrowDown':  input.down = false; input.rearRiser = false; break;
             case ' ':          input.flare = false; break;
             case 'r': case 'R': input.rearRiser = false; break;
         }
