@@ -870,7 +870,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.94 &middot; Jun 15, 2026</div>
+<div id="version-badge">v1.96 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -888,9 +888,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.94';
+const APP_VERSION = 'v1.96';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '11:36 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '7:59 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -2781,7 +2781,7 @@ class PhysicsEngine {
             belly:    { cdaMult: 1.00, baseDrive: 0.00, driveAuth: 0.16, turnAuth: 2.6, lean: 0.30 },
             track:    { cdaMult: 0.60, baseDrive: 0.42, driveAuth: 0.20, turnAuth: 2.0, lean: 0.22 },
             sitfly:   { cdaMult: 0.74, baseDrive: 0.00, driveAuth: 0.20, turnAuth: 3.0, lean: 0.35 },
-            headdown: { cdaMult: 0.40, baseDrive: 0.00, driveAuth: 0.26, turnAuth: 3.4, lean: 0.30 },
+            headdown: { cdaMult: 0.40, baseDrive: 0.00, driveAuth: 0.26, turnAuth: 4.0, lean: 0.30 },
         };
         const P = POS[pos] || POS.belly;
 
@@ -6281,8 +6281,14 @@ class SceneManager {
             let bodyPitchX = (ORIENT[_bp] !== undefined ? ORIENT[_bp] : Math.PI / 2 * 0.85);
             // Drive bar tips the body in the direction of travel (fore/aft lean)
             bodyPitchX += ffPitch * 0.5;
-            // Turning banks the body slightly into the turn
-            const turnRoll = -ffYawRate * 0.04;
+            // Turning banks the body into the turn. HEAD-DOWN CARVING banks hard like a
+            // spinning fan blade — the faster you yaw and the more you drive, the steeper
+            // the bank, carving a continuous arc around a center point.
+            let turnRoll = -ffYawRate * 0.04;
+            if (_bp === 'headdown') {
+                const driveMag = Math.min(1, Math.abs(ffPitch) / 0.3);
+                turnRoll = -ffYawRate * (0.10 + driveMag * 0.18);
+            }
 
             // Use YXZ order so yaw (Y) is applied first as a flat turn around world vertical,
             // THEN pitch (X) sets the body attitude.
@@ -6320,9 +6326,13 @@ class SceneManager {
                 // Forward: push arms back, extend a leg. Backward: arms forward.
                 targetLArmX += driveAmt * 0.22; targetRArmX += driveAmt * 0.22;
                 targetLLegX += driveAmt * 0.12;
-                // Turn: arm/leg asymmetry
-                targetRArmZ += turnAmt * 0.22; targetLArmZ += turnAmt * 0.22;
-                targetRLegZ += turnAmt * 0.10;
+                // ---- CARVING ---- arms AND legs swing the same way (banking the body
+                // into the arc), and the body stretches long like a fan blade.
+                targetRArmZ += turnAmt * 0.30; targetLArmZ += turnAmt * 0.30;
+                targetRLegZ += turnAmt * 0.26; targetLLegZ += turnAmt * 0.26;
+                const carve = Math.min(1, Math.abs(turnAmt) * (0.4 + Math.abs(driveAmt) * 0.6));
+                targetLLegX -= carve * 0.12; targetRLegX -= carve * 0.12; // straighten/extend
+                targetLKnee -= carve * 0.18; targetRKnee -= carve * 0.18;  // long body
             } else if (bodyPos === 'sitfly') {
                 // Sit fly: hips ~90°, thighs forward, shins down (knees 90°),
                 // arms 90° out to the sides, slight elbow bend.
@@ -8227,7 +8237,7 @@ function setupTouchControls() {
         const releaseFront = (e) => {
             activeFront.n = Math.max(0, activeFront.n - 1);
             if (activeFront.n === 0) input.up = false;
-            el.style.borderColor = '';
+            el.style.borderColor = 'rgba(255,255,255,0.12)'; // restore (not '' → avoids black currentColor)
             el.style.boxShadow = '';
             if (e) { e.preventDefault(); e.stopPropagation(); }
         };
@@ -8274,7 +8284,7 @@ function setupTouchControls() {
         const releaseRear = (e) => {
             rearAmount[id] = 0;
             if (knob) knob.style.display = 'none';
-            el.style.borderColor = '';
+            el.style.borderColor = 'rgba(255,255,255,0.12)'; // restore (not '' → avoids black currentColor)
             syncRearRiser();
             if (e) { e.preventDefault(); e.stopPropagation(); }
         };
