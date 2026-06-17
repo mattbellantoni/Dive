@@ -596,6 +596,14 @@
     <hr>
     <h3>Jumper Setup</h3>
     <div class="control-group">
+        <label><span>Sex</span></label>
+        <select id="jumper-sex">
+            <option value="male" selected>Male</option>
+            <option value="female">Female</option>
+            <option value="nonbinary">Non-Binary</option>
+        </select>
+    </div>
+    <div class="control-group">
         <label><span>Body Weight</span><span class="val" id="body-wt-val">155 lbs</span></label>
         <input type="range" id="body-weight" min="100" max="260" step="5" value="155">
     </div>
@@ -870,7 +878,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v1.98 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.03 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -888,9 +896,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v1.98';
+const APP_VERSION = 'v2.03';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '8:14 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '8:40 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1252,7 +1260,7 @@ window._targetPos = { x: 0, z: 0 }; // landing target (draggable aim point)
 // ==================== SETTINGS CACHE (localStorage) ====================
 const SETTINGS_KEY = 'dive_jump_settings';
 const CACHED_SETTING_IDS = [
-    'exit-alt', 'deploy-alt', 'body-weight', 'gear-weight',
+    'exit-alt', 'deploy-alt', 'body-weight', 'gear-weight', 'jumper-sex',
     'canopy-size', 'canopy-model', 'canopy-opacity',
     'exit-offset', 'exit-dir', 'body-pos',
     'wind-ground', 'wind-mid', 'wind-upper',
@@ -3443,26 +3451,27 @@ class SceneManager {
         tint(this.outerGround);
     }
 
-    // Change the jumper's build. Scales the torso (width/height), limb thickness,
-    // shoulder/hip width, and shows a belly for the heavier build.
-    applyBodyType(type) {
-        const T = {
-            petite:   { torso: [0.80, 0.95, 0.80], limb: 0.82, shoulder: 0.90, hip: 0.90, belly: 0 },
-            athletic: { torso: [1.00, 1.00, 1.00], limb: 1.00, shoulder: 1.00, hip: 1.00, belly: 0 },
-            muscular: { torso: [1.18, 1.00, 1.12], limb: 1.28, shoulder: 1.18, hip: 1.02, belly: 0 },
-            cuddly:   { torso: [1.35, 1.00, 1.32], limb: 1.18, shoulder: 1.02, hip: 1.18, belly: 1 },
+    // Jumper sex: shows the braid for female, and (when setColors) applies a gear
+    // color scheme. On load we only set the braid so saved custom colors aren't lost.
+    applySex(sex, setColors) {
+        if (this.braid) this.braid.visible = (sex === 'female');
+        if (!setColors) return;
+        const schemes = {
+            male:      { helmet: '#1a1a1a', shirt: '#556B2F', pants: '#C8B88A' }, // olive/black
+            female:    { helmet: '#4C1D95', shirt: '#EC4899', pants: '#7C3AED' }, // purple / pink
+            nonbinary: { helmet: '#2C2C2C', shirt: '#9B5DE5', pants: '#F4D03F' }, // purple / yellow / black
         };
-        const b = T[type] || T.athletic;
-        if (this.torso) this.torso.scale.set(b.torso[0], b.torso[1], b.torso[2]);
-        if (this.leftArmGroup) { this.leftArmGroup.scale.set(b.limb, 1, b.limb); this.leftArmGroup.position.x = this._shoulderBaseX * b.shoulder; }
-        if (this.rightArmGroup) { this.rightArmGroup.scale.set(b.limb, 1, b.limb); this.rightArmGroup.position.x = -this._shoulderBaseX * b.shoulder; }
-        if (this.leftLegGroup) { this.leftLegGroup.scale.set(b.limb, 1, b.limb); this.leftLegGroup.position.x = this._hipBaseX * b.hip; }
-        if (this.rightLegGroup) { this.rightLegGroup.scale.set(b.limb, 1, b.limb); this.rightLegGroup.position.x = -this._hipBaseX * b.hip; }
-        if (this.belly) {
-            this.belly.visible = b.belly > 0;
-            this.belly.scale.set(b.torso[0] * 1.05, 0.9, b.torso[2] * 1.15);
-        }
+        const s = schemes[sex] || schemes.male;
+        const set = (id, hex, mat) => {
+            const el = document.getElementById(id);
+            if (el) el.value = hex;
+            if (mat) mat.color.set(hex);
+        };
+        set('gear-helmet', s.helmet, this.helmetMat2);
+        set('gear-shirt', s.shirt, this.shirtMat);
+        set('gear-pants', s.pants, this.pantsMat);
     }
+
 
     // Re-compute sky, sun, moon, stars and lighting from the chosen time of day,
     // cloud cover and light pollution. Static per jump — called on changes only.
@@ -4456,15 +4465,6 @@ class SceneManager {
         // Torso (olive drab shirt)
         const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 1.6, 8), shirtMat);
         this.skydiver.add(torso);
-        this.torso = torso;            // ref for body-type scaling
-        this._shoulderBaseX = 0.4;     // base shoulder half-width
-        this._hipBaseX = 0.15;         // base hip half-width
-        // Belly bulge (hidden unless a heavier body type is chosen)
-        const belly = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), shirtMat);
-        belly.position.set(0, -0.15, 0.12);
-        belly.visible = false;
-        this.skydiver.add(belly);
-        this.belly = belly;
 
         // Head
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), skinMat);
@@ -4477,6 +4477,26 @@ class SceneManager {
         );
         helmet.position.y = 1.05;
         this.skydiver.add(helmet);
+
+        // Long braid flowing out the back of the helmet (female jumper).
+        // Segments are animated to blow in the wind in updateScene().
+        const braidMat = new THREE.MeshLambertMaterial({ color: 0x5c3a1e });
+        const braid = new THREE.Group();
+        this.braidSegs = [];
+        const braidN = 6;
+        for (let i = 0; i < braidN; i++) {
+            const seg = new THREE.Mesh(new THREE.SphereGeometry(0.085 - i * 0.008, 7, 6), braidMat);
+            seg.userData.baseY = -i * 0.16;
+            seg.userData.f = i / (braidN - 1);  // 0 root → 1 tip
+            seg.position.y = seg.userData.baseY;
+            braid.add(seg);
+            this.braidSegs.push(seg);
+        }
+        braid.position.set(0, 1.0, -0.24); // back of the helmet
+        braid.rotation.x = 0.6;            // sweeps down and BACK (−z)
+        braid.visible = false;
+        this.skydiver.add(braid);
+        this.braid = braid;
 
         // Oakley Holbrook glasses — rectangular frames with burnt orange lenses
         const frameMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
@@ -5607,24 +5627,27 @@ class SceneManager {
         // On a real rig, the collapsed PC trails behind the canopy's trailing edge,
         // connected by a bridle through the center cells to the d-bag on top.
         // Real PCs are typically bright (white, orange, or neon) and ~28-32" diameter collapsed.
-        const collapsedPCMat = new THREE.MeshLambertMaterial({ color: 0xff6600 });
+        // depthTest off + high renderOrder so the chute is never occluded by the canopy
+        // from any camera angle (it was hiding behind the canopy on the desktop chase view).
+        const collapsedPCMat = new THREE.MeshLambertMaterial({ color: 0xff6600, depthTest: false, depthWrite: false, transparent: true });
         const collapsedPCGeo = new THREE.SphereGeometry(0.6, 12, 10);
         collapsedPCGeo.scale(1.2, 0.55, 1.2); // flattened/collapsed — wider pancake shape
         this.collapsedPilotChute = new THREE.Mesh(collapsedPCGeo, collapsedPCMat);
-        this.collapsedPilotChute.renderOrder = 6;
+        this.collapsedPilotChute.renderOrder = 60;
         this.collapsedPilotChute.visible = false;
         // Trails just behind + below the trailing edge (TE is at z≈1.75 local)
         this.collapsedPilotChute.position.set(0, -0.9, 2.8);
         this.canopyGroup.add(this.collapsedPilotChute);
 
         // Bridle line from d-bag (top of canopy) through TE to collapsed pilot chute
-        const collBridleMat = new THREE.LineBasicMaterial({ color: 0x555555 });
+        const collBridleMat = new THREE.LineBasicMaterial({ color: 0x999999, depthTest: false, transparent: true });
         const collBridleGeo = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 1.0, 0.12),   // d-bag on top of canopy
-            new THREE.Vector3(0, 0, 3.5),       // exits through trailing edge
-            new THREE.Vector3(0, -0.5, 5.5)     // to collapsed PC trailing behind
+            new THREE.Vector3(0, 1.0, 0.12),    // d-bag on top of canopy
+            new THREE.Vector3(0, 0.1, 1.75),    // exits through the trailing edge (z≈1.75)
+            new THREE.Vector3(0, -0.9, 2.8)     // to collapsed PC just behind/below
         ]);
         this.collapsedBridle = new THREE.Line(collBridleGeo, collBridleMat);
+        this.collapsedBridle.renderOrder = 59;
         this.collapsedBridle.visible = false;
         this.canopyGroup.add(this.collapsedBridle);
 
@@ -6289,6 +6312,22 @@ class SceneManager {
         anim.windBuffet += (dt || 0.016) * 8;
         const buffet = Math.sin(anim.windBuffet) * Math.min(speed / 100, 0.08);
 
+        // Braid blowing in the wind (female jumper) — segments sway, more toward the tip
+        // and harder at higher airspeed.
+        if (this.braid && this.braid.visible && this.braidSegs) {
+            const bt = anim.windBuffet || 0;
+            const gust = 0.06 + Math.min(speed / 70, 0.22);
+            for (let i = 0; i < this.braidSegs.length; i++) {
+                const seg = this.braidSegs[i];
+                const f = seg.userData.f;
+                const amp = gust * f * 1.6;
+                seg.position.x = Math.sin(bt * 3.0 + i * 0.55) * amp;
+                // fore/aft sway is biased BACKWARD (−z) so the braid never flips to the front
+                seg.position.z = -Math.abs(Math.cos(bt * 2.3 + i * 0.5)) * amp * 0.6;
+                seg.position.y = seg.userData.baseY + Math.sin(bt * 2.0 + i * 0.4) * amp * 0.25;
+            }
+        }
+
         if (state.phase === 'freefall' || state.phase === 'aircraft') {
             // Body orientation from physics: ffPitch, ffYaw, instability wobble
             const instab = state.instability || 0;
@@ -6598,6 +6637,23 @@ class SceneManager {
             const showCanopy = state.phase === 'canopy' || (state.phase === 'deploying' && deployFrac > 0.4);
 
             this.canopyGroup.visible = showCanopy;
+
+            // Pilot chute + bridle: drive visibility/position HERE in updateScene so the
+            // chute reliably shows under canopy even if a later scene call errors out.
+            if (this.collapsedPilotChute && state.phase === 'canopy') {
+                this.collapsedPilotChute.visible = true;
+                if (this.collapsedBridle) this.collapsedBridle.visible = true;
+                const ft = (this.bodyAnim ? this.bodyAnim.windBuffet : 0) || 0;
+                const pcX = Math.sin(ft * 1.7) * 0.2;
+                const pcY = -0.9 + Math.sin(ft * 3.5) * 0.25;
+                const pcZ = 2.8 + Math.sin(ft * 2) * 0.35;
+                this.collapsedPilotChute.position.set(pcX, pcY, pcZ);
+                if (this.collapsedBridle && this.collapsedBridle.geometry.attributes.position) {
+                    const bp = this.collapsedBridle.geometry.attributes.position.array;
+                    bp[6] = pcX; bp[7] = pcY; bp[8] = pcZ;
+                    this.collapsedBridle.geometry.attributes.position.needsUpdate = true;
+                }
+            }
 
             // During deployment inflation, scale canopy up from 0 to 1
             if (state.phase === 'deploying' && showCanopy) {
@@ -7555,6 +7611,8 @@ function initSimulator(dzInfo) {
     setupUIControls();
     updateWindFromUI();
     updateCanopyDisplay();
+    const sxEl0 = document.getElementById('jumper-sex');
+    if (sxEl0) sceneManager.applySex(sxEl0.value, false); // braid only; keep saved colors
 
     requestAnimationFrame(gameLoop);
 
@@ -8505,6 +8563,11 @@ function setupUIControls() {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', () => { updateEnvironmentFromUI(); saveSettings(); });
     });
+    const sexEl = document.getElementById('jumper-sex');
+    if (sexEl) sexEl.addEventListener('change', () => {
+        if (sceneManager) sceneManager.applySex(sexEl.value, true); // apply color scheme + braid
+        saveSettings();
+    });
     document.getElementById('canopy-model').addEventListener('change', onCanopyModelChange);
     document.getElementById('canopy-opacity').addEventListener('input', () => {
         const val = parseInt(document.getElementById('canopy-opacity').value);
@@ -8876,6 +8939,8 @@ if (hadCachedDZ && selectedDZ) {
                 updateJumpFromUI();
                 updateCanopyDisplay();
                 applyGearColors();
+                const sxEl = document.getElementById('jumper-sex');
+                if (sxEl && sceneManager) sceneManager.applySex(sxEl.value, false);
                 setDefaultTimeForDZ(selectedDZ.lng, true); // always load the DZ's real local time
                 setTimeout(() => applyCanopyColors(), 500); // delay for canopy mesh to init
                 fetchLiveWinds();
