@@ -256,6 +256,81 @@
             text-shadow: 0 1px 3px rgba(0,0,0,0.8);
         }
 
+        /* ===== Global Leaderboard ===== */
+        #leaderboard-btn {
+            position: fixed; bottom: 12px; right: 12px; z-index: 250;
+            width: 46px; height: 46px; border-radius: 50%;
+            background: linear-gradient(160deg,#fbbf24,#d97706);
+            border: 1px solid rgba(255,255,255,0.35);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+            transition: transform 0.12s ease;
+        }
+        #leaderboard-btn:active { transform: scale(0.92); }
+        .lb-overlay {
+            position: fixed; inset: 0; z-index: 1200;
+            background: rgba(6,10,20,0.72); backdrop-filter: blur(6px);
+            display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .lb-overlay.hidden { display: none; }
+        .lb-card {
+            background: linear-gradient(180deg,#141b2e,#0d1320);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 16px;
+            padding: 22px 22px 18px; width: 100%; max-width: 380px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.6); color: #e8edf6;
+            position: relative; font-family: system-ui, sans-serif;
+        }
+        .lb-card-wide { max-width: 560px; }
+        .lb-card h2 { margin: 0 0 4px; font-size: 19px; font-weight: 700; }
+        .lb-sub { margin: 0 0 16px; font-size: 12px; color: rgba(255,255,255,0.55); }
+        .lb-field { display: block; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.04em; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
+        .lb-field input, .lb-field select {
+            display: block; width: 100%; margin-top: 5px; padding: 9px 10px;
+            border-radius: 8px; background: #1e293b; color: #e8edf6;
+            border: 1px solid #3a4a63; font-size: 14px; box-sizing: border-box;
+        }
+        .lb-btn-primary {
+            width: 100%; padding: 11px; border: none; border-radius: 9px;
+            background: linear-gradient(135deg,#5b67ff,#3b46d4); color: #fff;
+            font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px;
+        }
+        .lb-btn-primary:active { transform: translateY(1px); }
+        .lb-btn-ghost {
+            width: 100%; padding: 9px; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 9px; background: transparent; color: rgba(255,255,255,0.7);
+            font-size: 13px; cursor: pointer; margin-top: 8px;
+        }
+        .lb-x {
+            position: absolute; top: 12px; right: 14px; background: none; border: none;
+            color: rgba(255,255,255,0.6); font-size: 24px; line-height: 1; cursor: pointer;
+        }
+        .lb-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+        .lb-tab {
+            flex: 1; padding: 8px 4px; border-radius: 8px; cursor: pointer;
+            background: rgba(255,255,255,0.06); border: 1px solid transparent;
+            color: rgba(255,255,255,0.65); font-size: 12px; font-weight: 600;
+        }
+        .lb-tab-active {
+            background: rgba(91,103,255,0.22); border-color: rgba(91,103,255,0.6);
+            color: #fff;
+        }
+        .lb-status { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 8px; min-height: 14px; }
+        .lb-table-wrap { max-height: 50vh; overflow-y: auto; border-radius: 8px; }
+        #lb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        #lb-table th {
+            text-align: left; padding: 7px 8px; position: sticky; top: 0;
+            background: #0d1320; color: rgba(255,255,255,0.5);
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        #lb-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        #lb-table tr.lb-me td { background: rgba(91,103,255,0.16); font-weight: 600; }
+        #lb-table td.lb-rank { color: rgba(255,255,255,0.45); width: 30px; text-align: center; }
+        #lb-table td.lb-val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        #lb-table th.lb-val { text-align: right; }
+
         /* Loading overlay for satellite tiles */
         #loading-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.8);
@@ -708,6 +783,19 @@
         <label><span>Light Pollution</span><span class="val" id="light-pollution-val">30%</span></label>
         <input type="range" id="light-pollution" min="0" max="100" step="5" value="30">
     </div>
+    <div id="night-jump-notice" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;
+        background:rgba(99,102,241,0.14);border:1px solid rgba(129,140,248,0.5);font-size:10.5px;line-height:1.4;color:#dbe2ff;">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#c7d2fe;">&#x1F319; Night Jump &mdash; FAR 105.19 in effect</div>
+        <div style="opacity:0.9;">Required &amp; recommended equipment:</div>
+        <div style="margin-top:3px;opacity:0.95;">
+            &#x2022; <b>Strobe</b> visible &ge;3 statute miles (on from canopy open to landing)<br>
+            &#x2022; <b>Chemlights</b> on arms &amp; legs for freefall visibility<br>
+            &#x2022; <b>Illuminated altimeter</b> + audible (glow/digital backlight)<br>
+            &#x2022; <b>Whistle</b> for canopy collision avoidance<br>
+            &#x2022; USPA B-license &amp; S&amp;TA briefing
+        </div>
+        <div style="margin-top:4px;opacity:0.6;font-size:9.5px;">Strobe &amp; chemlights are auto-equipped on your jumper.</div>
+    </div>
     <div class="control-group" style="margin-top:8px;">
         <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
             <span>Landing Projection</span>
@@ -878,7 +966,43 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.03 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.05 &middot; Jun 15, 2026</div>
+
+<!-- Global Leaderboard -->
+<div id="leaderboard-btn" title="Global Leaderboard">&#x1F3C6;</div>
+
+<div id="profile-overlay" class="lb-overlay hidden">
+    <div class="lb-card">
+        <h2>Jumper Profile</h2>
+        <p class="lb-sub">Add your name to join the global leaderboard.</p>
+        <label class="lb-field">Name
+            <input id="profile-name" type="text" maxlength="24" placeholder="Name or handle" autocomplete="off">
+        </label>
+        <label class="lb-field">Country
+            <select id="profile-country"></select>
+        </label>
+        <button id="profile-save" class="lb-btn-primary">Save &amp; Continue</button>
+        <button id="profile-skip" class="lb-btn-ghost">Skip for now</button>
+    </div>
+</div>
+
+<div id="leaderboard-overlay" class="lb-overlay hidden">
+    <div class="lb-card lb-card-wide">
+        <button id="lb-close" class="lb-x">&times;</button>
+        <h2>&#x1F3C6; Global Leaderboard</h2>
+        <p class="lb-sub">Ranked across all Skydive Mobile jumpers.</p>
+        <div class="lb-tabs">
+            <button class="lb-tab lb-tab-active" data-sort="jumps">Total Jumps</button>
+            <button class="lb-tab" data-sort="freefallSec">Freefall Time</button>
+            <button class="lb-tab" data-sort="canopySec">Canopy Time</button>
+        </div>
+        <div id="lb-status" class="lb-status"></div>
+        <div class="lb-table-wrap">
+            <table id="lb-table"><thead></thead><tbody></tbody></table>
+        </div>
+        <button id="lb-edit-profile" class="lb-btn-ghost">Edit my profile</button>
+    </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -896,9 +1020,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.03';
+const APP_VERSION = 'v2.05';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '8:40 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '8:58 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -930,6 +1054,204 @@ const APP_UPDATED_TIME = '8:40 PM ET'; // time of last update (US Eastern)
         setup();
     }
 })();
+
+// ==================== GLOBAL LEADERBOARD (Firebase) ====================
+// To make the leaderboard GLOBAL (shared across everyone), create a free
+// Firebase project (https://console.firebase.google.com) → add a Web app →
+// copy its config, and paste the values below. Also enable Cloud Firestore
+// (in "test mode" to start) under Build → Firestore Database.
+// Until apiKey is filled in, the leaderboard works locally (your stats only).
+const FIREBASE_CONFIG = {
+    apiKey: "",              // 🔑 paste here
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+};
+
+const LB = { db: null, fs: null, ready: false, profile: null, stats: null, sortField: 'jumps' };
+
+const COUNTRIES = ["United States","Canada","United Kingdom","Australia","Germany","France","Spain","Italy","Netherlands","Belgium","Switzerland","Austria","Sweden","Norway","Denmark","Finland","Ireland","Portugal","Poland","Czechia","Russia","Ukraine","Greece","Turkey","Israel","United Arab Emirates","Saudi Arabia","India","Pakistan","China","Japan","South Korea","Thailand","Vietnam","Philippines","Indonesia","Malaysia","Singapore","New Zealand","South Africa","Egypt","Kenya","Nigeria","Morocco","Mexico","Brazil","Argentina","Chile","Colombia","Peru","Costa Rica","Other"];
+
+function lbUid() {
+    return (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'u' + Date.now() + Math.random().toString(36).slice(2);
+}
+function lbLoadLocal() {
+    try { LB.profile = JSON.parse(localStorage.getItem('dive_profile') || 'null'); } catch (e) {}
+    try { LB.stats = JSON.parse(localStorage.getItem('dive_stats') || 'null'); } catch (e) {}
+    if (!LB.stats) LB.stats = { jumps: 0, freefallSec: 0, canopySec: 0 };
+}
+function lbSaveLocal() {
+    try { localStorage.setItem('dive_stats', JSON.stringify(LB.stats)); } catch (e) {}
+    if (LB.profile) { try { localStorage.setItem('dive_profile', JSON.stringify(LB.profile)); } catch (e) {} }
+}
+async function lbInitFirebase() {
+    if (!FIREBASE_CONFIG.apiKey) return; // not configured → local-only
+    try {
+        const appMod = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+        const fs = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+        const app = appMod.initializeApp(FIREBASE_CONFIG);
+        LB.db = fs.getFirestore(app); LB.fs = fs; LB.ready = true;
+        lbSyncUp();
+    } catch (e) { console.warn('Leaderboard: Firebase unavailable, running local-only.', e); }
+}
+function lbSetProfile(name, country) {
+    if (!LB.profile) LB.profile = { id: lbUid() };
+    LB.profile.name = name; LB.profile.country = country;
+    lbSaveLocal(); lbSyncUp();
+}
+function lbHasProfile() { return !!(LB.profile && LB.profile.name); }
+
+// Stat accumulation (called from the game loop)
+function lbAddTime(phase, dt) {
+    if (!LB.stats) return;
+    if (phase === 'freefall') LB.stats.freefallSec += dt;
+    else if (phase === 'canopy') LB.stats.canopySec += dt;
+}
+function lbAddJump() {
+    if (!LB.stats) return;
+    LB.stats.jumps++; lbSaveLocal(); lbSyncUp();
+}
+let _lbSaveAccum = 0;
+function lbTickSave(dt) {
+    _lbSaveAccum += dt;
+    if (_lbSaveAccum > 5) { _lbSaveAccum = 0; lbSaveLocal(); lbSyncUp(); }
+}
+async function lbSyncUp() {
+    if (!LB.ready || !lbHasProfile()) return;
+    try {
+        const { doc, setDoc } = LB.fs;
+        await setDoc(doc(LB.db, 'leaderboard', LB.profile.id), {
+            name: LB.profile.name,
+            country: LB.profile.country || '',
+            jumps: Math.round(LB.stats.jumps),
+            freefallSec: Math.round(LB.stats.freefallSec),
+            canopySec: Math.round(LB.stats.canopySec),
+            updated: Date.now()
+        }, { merge: true });
+    } catch (e) { /* offline / rules — ignore */ }
+}
+async function lbFetch(sortField) {
+    if (!LB.ready) return null;
+    try {
+        const { collection, query, orderBy, limit, getDocs } = LB.fs;
+        const q = query(collection(LB.db, 'leaderboard'), orderBy(sortField, 'desc'), limit(100));
+        const snap = await getDocs(q);
+        const rows = []; snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+        return rows;
+    } catch (e) { console.warn('Leaderboard fetch failed', e); return null; }
+}
+
+function lbFmtTime(sec) {
+    sec = Math.round(sec || 0);
+    if (sec < 60) return sec + 's';
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm ' + s + 's';
+}
+function lbCountryFlag(name) {
+    const map = { "United States":"🇺🇸","Canada":"🇨🇦","United Kingdom":"🇬🇧","Australia":"🇦🇺","Germany":"🇩🇪","France":"🇫🇷","Spain":"🇪🇸","Italy":"🇮🇹","Netherlands":"🇳🇱","Belgium":"🇧🇪","Switzerland":"🇨🇭","Austria":"🇦🇹","Sweden":"🇸🇪","Norway":"🇳🇴","Denmark":"🇩🇰","Finland":"🇫🇮","Ireland":"🇮🇪","Portugal":"🇵🇹","Poland":"🇵🇱","Czechia":"🇨🇿","Russia":"🇷🇺","Ukraine":"🇺🇦","Greece":"🇬🇷","Turkey":"🇹🇷","Israel":"🇮🇱","United Arab Emirates":"🇦🇪","Saudi Arabia":"🇸🇦","India":"🇮🇳","Pakistan":"🇵🇰","China":"🇨🇳","Japan":"🇯🇵","South Korea":"🇰🇷","Thailand":"🇹🇭","Vietnam":"🇻🇳","Philippines":"🇵🇭","Indonesia":"🇮🇩","Malaysia":"🇲🇾","Singapore":"🇸🇬","New Zealand":"🇳🇿","South Africa":"🇿🇦","Egypt":"🇪🇬","Kenya":"🇰🇪","Nigeria":"🇳🇬","Morocco":"🇲🇦","Mexico":"🇲🇽","Brazil":"🇧🇷","Argentina":"🇦🇷","Chile":"🇨🇱","Colombia":"🇨🇴","Peru":"🇵🇪","Costa Rica":"🇨🇷" };
+    return map[name] || '🌐';
+}
+
+// ---- Leaderboard UI ----
+function lbRenderTable(rows) {
+    const sf = LB.sortField;
+    const thead = document.querySelector('#lb-table thead');
+    const tbody = document.querySelector('#lb-table tbody');
+    if (!thead || !tbody) return;
+    const valHead = sf === 'jumps' ? 'Jumps' : (sf === 'freefallSec' ? 'Freefall' : 'Canopy');
+    thead.innerHTML = `<tr><th class="lb-rank">#</th><th>Jumper</th><th class="lb-val">${valHead}</th></tr>`;
+    tbody.innerHTML = '';
+    const myId = LB.profile && LB.profile.id;
+    rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        if (myId && r.id === myId) tr.className = 'lb-me';
+        let val;
+        if (sf === 'jumps') val = (r.jumps || 0).toLocaleString();
+        else val = lbFmtTime(sf === 'freefallSec' ? r.freefallSec : r.canopySec);
+        const flag = lbCountryFlag(r.country);
+        const nm = (r.name || 'Anonymous').replace(/[<>&]/g, '');
+        tr.innerHTML = `<td class="lb-rank">${i + 1}</td><td>${flag} ${nm}<span style="opacity:0.4;font-size:11px;"> · ${r.country || ''}</span></td><td class="lb-val">${val}</td>`;
+        tbody.appendChild(tr);
+    });
+    if (!rows.length) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;opacity:0.5;padding:20px;">No jumpers yet — be the first!</td></tr>';
+}
+async function lbRefresh() {
+    const statusEl = document.getElementById('lb-status');
+    let rows = await lbFetch(LB.sortField);
+    if (rows === null) {
+        // Local-only fallback: show just this jumper
+        if (statusEl) statusEl.textContent = LB.ready ? 'Could not reach the global leaderboard — showing your stats.' : 'Global leaderboard not configured — showing your local stats only.';
+        rows = [];
+        if (lbHasProfile()) rows.push({ id: LB.profile.id, name: LB.profile.name, country: LB.profile.country, jumps: Math.round(LB.stats.jumps), freefallSec: LB.stats.freefallSec, canopySec: LB.stats.canopySec });
+    } else {
+        if (statusEl) statusEl.textContent = rows.length + ' jumpers worldwide';
+    }
+    lbRenderTable(rows);
+}
+function lbOpenProfile() {
+    const ov = document.getElementById('profile-overlay');
+    const nameI = document.getElementById('profile-name');
+    const ctrySel = document.getElementById('profile-country');
+    if (LB.profile) {
+        if (nameI) nameI.value = LB.profile.name || '';
+        if (ctrySel) ctrySel.value = LB.profile.country || 'United States';
+    }
+    if (ov) ov.classList.remove('hidden');
+    if (nameI) setTimeout(() => nameI.focus(), 50);
+}
+function lbCloseProfile() { const ov = document.getElementById('profile-overlay'); if (ov) ov.classList.add('hidden'); }
+function lbOpenBoard() { const ov = document.getElementById('leaderboard-overlay'); if (ov) ov.classList.remove('hidden'); lbRefresh(); }
+function lbCloseBoard() { const ov = document.getElementById('leaderboard-overlay'); if (ov) ov.classList.add('hidden'); }
+
+(function initLeaderboardUI() {
+    function setup() {
+        lbLoadLocal();
+        lbInitFirebase();
+        // Populate country dropdown
+        const ctrySel = document.getElementById('profile-country');
+        if (ctrySel && !ctrySel.options.length) {
+            COUNTRIES.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = lbCountryFlag(c) + '  ' + c; ctrySel.appendChild(o); });
+            ctrySel.value = (LB.profile && LB.profile.country) || 'United States';
+        }
+        const trophy = document.getElementById('leaderboard-btn');
+        if (trophy) trophy.addEventListener('click', lbOpenBoard);
+        const closeBtn = document.getElementById('lb-close');
+        if (closeBtn) closeBtn.addEventListener('click', lbCloseBoard);
+        const lbOv = document.getElementById('leaderboard-overlay');
+        if (lbOv) lbOv.addEventListener('click', (e) => { if (e.target === lbOv) lbCloseBoard(); });
+        document.querySelectorAll('.lb-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('lb-tab-active'));
+                tab.classList.add('lb-tab-active');
+                LB.sortField = tab.dataset.sort;
+                lbRefresh();
+            });
+        });
+        const editBtn = document.getElementById('lb-edit-profile');
+        if (editBtn) editBtn.addEventListener('click', () => { lbCloseBoard(); lbOpenProfile(); });
+        const saveBtn = document.getElementById('profile-save');
+        if (saveBtn) saveBtn.addEventListener('click', () => {
+            const nm = (document.getElementById('profile-name').value || '').trim();
+            const ct = document.getElementById('profile-country').value || '';
+            if (!nm) { document.getElementById('profile-name').focus(); return; }
+            lbSetProfile(nm, ct);
+            lbCloseProfile();
+            if (window._afterProfile) { const cb = window._afterProfile; window._afterProfile = null; cb(); }
+        });
+        const skipBtn = document.getElementById('profile-skip');
+        if (skipBtn) skipBtn.addEventListener('click', () => {
+            lbCloseProfile();
+            if (window._afterProfile) { const cb = window._afterProfile; window._afterProfile = null; cb(); }
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
+    else setup();
+})();
+window.lbAddTime = lbAddTime; window.lbAddJump = lbAddJump; window.lbTickSave = lbTickSave;
+window.lbHasProfile = lbHasProfile; window.lbOpenProfile = lbOpenProfile;
 
 // ==================== FULL-SCREEN EXPERIENCE ====================
 // Give web users an immersive, edge-to-edge view: collapse the browser bar a few
@@ -4751,6 +5073,49 @@ class SceneManager {
         aadWindow.position.set(0, 0.38, -0.43);
         this.skydiver.add(aadWindow);
 
+        // ==================== NIGHT-JUMP REQUIRED EQUIPMENT (FAR 105.19) ====================
+        // Chemlights (glow sticks) taped to both forearms and both lower legs so other
+        // jumpers can see this person in freefall (USPA recommendation), plus a helmet
+        // strobe that satisfies FAR 105.19's "light visible for at least 3 statute miles,"
+        // burning from canopy deployment until landing.
+        this.glowSticks = [];
+        const mkGlow = (parent, color, y, z) => {
+            const m = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.028, 0.028, 0.24, 6),
+                new THREE.MeshBasicMaterial({ color })
+            );
+            m.position.set(0, y, z);
+            m.visible = false;
+            parent.add(m);
+            this.glowSticks.push(m);
+            // soft colored glow around each chemlight
+            const gl = new THREE.PointLight(color, 0, 6);
+            gl.position.copy(m.position);
+            parent.add(gl);
+            m.userData.light = gl;
+            return m;
+        };
+        // Green on the arms, red on the legs — classic chemlight layout
+        if (this.leftForearm)  mkGlow(this.leftForearm,  0x39ff14, -0.28, 0.07);
+        if (this.rightForearm) mkGlow(this.rightForearm, 0x39ff14, -0.28, 0.07);
+        if (this.leftLowerLeg)  mkGlow(this.leftLowerLeg,  0xff2a2a, -0.26, 0.09);
+        if (this.rightLowerLeg) mkGlow(this.rightLowerLeg, 0xff2a2a, -0.26, 0.09);
+
+        // Helmet strobe (the FAR-required 3-statute-mile light)
+        const strobe = new THREE.Mesh(
+            new THREE.SphereGeometry(0.06, 10, 10),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        strobe.position.set(0, 1.34, 0.04);
+        strobe.visible = false;
+        this.skydiver.add(strobe);
+        this.strobe = strobe;
+        const strobeLight = new THREE.PointLight(0xffffff, 0, 40);
+        strobeLight.position.set(0, 1.4, 0.04);
+        this.skydiver.add(strobeLight);
+        this.strobeLight = strobeLight;
+        this._strobePhase = 0;
+
         // Animation state for smooth transitions
         this.bodyAnim = {
             leftArmRot: { x: 0, z: 0 }, rightArmRot: { x: 0, z: 0 },
@@ -4761,6 +5126,39 @@ class SceneManager {
         };
 
         this.scene.add(this.skydiver);
+    }
+
+    // True between sunset and sunrise (FAR 105.19 night window).
+    isNightJump() {
+        return !!(this._sun && this._sun.altitude < 0);
+    }
+
+    // Show/animate the required night-jump lighting based on flight phase.
+    updateNightEquipment(phase, dt) {
+        const night = this.isNightJump();
+        // Chemlights: lit the whole night skydive so others can spot the jumper in freefall.
+        const glowOn = night && (phase === 'freefall' || phase === 'deploying' || phase === 'canopy');
+        if (this.glowSticks) {
+            for (const g of this.glowSticks) {
+                g.visible = glowOn;
+                if (g.userData.light) g.userData.light.intensity = glowOn ? 0.6 : 0;
+            }
+        }
+        // Strobe: FAR 105.19 requires it from open canopy until landing. We also run it
+        // during deployment for realism. It blinks ~1.4 Hz.
+        const strobeActive = night && (phase === 'deploying' || phase === 'canopy');
+        if (this.strobe && this.strobeLight) {
+            if (strobeActive) {
+                this._strobePhase += dt;
+                const on = (this._strobePhase % 0.7) < 0.09; // brief bright flash
+                this.strobe.visible = true;
+                this.strobe.material.color.setHex(on ? 0xffffff : 0x223044);
+                this.strobeLight.intensity = on ? 6 : 0;
+            } else {
+                this.strobe.visible = false;
+                this.strobeLight.intensity = 0;
+            }
+        }
     }
 
     create3DCanopy() {
@@ -6328,6 +6726,9 @@ class SceneManager {
             }
         }
 
+        // Night-jump required lighting (chemlights + FAR 105.19 strobe)
+        this.updateNightEquipment(state.phase, dt || 0.016);
+
         if (state.phase === 'freefall' || state.phase === 'aircraft') {
             // Body orientation from physics: ffPitch, ffYaw, instability wobble
             const instab = state.instability || 0;
@@ -7784,6 +8185,8 @@ function gameLoop(timestamp) {
         }
 
         physics.update(dt, wind, input, deployAltM, canopyPerf);
+        // Leaderboard: accumulate freefall / canopy time and periodically persist
+        if (window.lbAddTime) { window.lbAddTime(physics.phase, dt); window.lbTickSave(dt); }
         try {
             sceneManager.updateScene({...physics, deployDuration: canopyPerf.deployDuration}, wind, input, dt);
             sceneManager.updateCanopyFabric(dt, wind, physics);
@@ -7855,6 +8258,7 @@ function gameLoop(timestamp) {
         if (physics.phase === 'landed') {
             ui.showLandingScore(physics, canopyPerf);
             sceneManager.orbitControls.target.set(physics.position.x, 0, physics.position.z);
+            if (window.lbAddJump) window.lbAddJump(); // count completed jump for leaderboard
             isRunning = false;
             // Hide wind indicator on landing (winds aloft panel stays via updateWindDisplays)
             document.getElementById('wind-indicator').style.display = 'none';
@@ -8636,6 +9040,9 @@ function updateEnvironmentFromUI() {
     document.getElementById('time-of-day-val').textContent = timeOfDayLabel(t, sunAlt);
     if (cEl) document.getElementById('cloud-cover-val').textContent = cc + '%';
     if (lEl) document.getElementById('light-pollution-val').textContent = lp + '%';
+    // Night-jump requirements (FAR 105.19): in effect between sunset and sunrise
+    const njn = document.getElementById('night-jump-notice');
+    if (njn) njn.style.display = (sunAlt < 0) ? 'block' : 'none';
     if (sceneManager) { try { sceneManager.applyTimeOfDay(); } catch (e) {} }
 }
 
@@ -8669,6 +9076,13 @@ window.startJump = function() {
     try {
     if (!simInitialized) { console.warn('Sim not initialized'); return; }
     if (isRunning) return;
+    // First jump: invite the jumper to join the global leaderboard (ask once)
+    if (window.lbHasProfile && !window.lbHasProfile() && !localStorage.getItem('dive_profile_prompted')) {
+        try { localStorage.setItem('dive_profile_prompted', '1'); } catch (e) {}
+        window._afterProfile = () => window.startJump();
+        window.lbOpenProfile();
+        return;
+    }
     // Reset FPV and body position to the chosen starting discipline
     fpvMode = false;
     const startPos = document.getElementById('body-pos').value || 'belly';
