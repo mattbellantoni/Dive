@@ -9,6 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Skydive Mobile">
     <meta name="theme-color" content="#05080f">
+    <!-- Web app manifest (inline) → Android "Install app" launches chrome-less (standalone) -->
+    <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Skydive%20Mobile%22%2C%22short_name%22%3A%22Skydive%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2305080f%22%2C%22theme_color%22%3A%22%2305080f%22%2C%22orientation%22%3A%22any%22%2C%22start_url%22%3A%22.%22%7D">
     <title>Dive — Skydiving Wind Simulator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -902,7 +904,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.16 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.17 &middot; Jun 15, 2026</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -920,9 +922,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.16';
+const APP_VERSION = 'v2.17';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '9:20 AM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '9:27 AM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -937,6 +939,27 @@ const APP_UPDATED_TIME = '9:20 AM ET'; // time of last update (US Eastern)
 
         // Show the welcome screen on every visit / refresh / return.
         overlay.classList.remove('hidden');
+
+        // iOS Safari blocks the Fullscreen API for web pages, so the URL bar can't be
+        // hidden from a tab. The only chrome-less route on iPhone/iPad is Add to Home
+        // Screen — show a one-time tip on how to do it (skipped when already standalone).
+        try {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const standalone = window.navigator.standalone === true ||
+                window.matchMedia('(display-mode: standalone)').matches;
+            const btnEl = document.getElementById('welcome-enter');
+            if (isIOS && !standalone && btnEl && !document.getElementById('wc-a2hs')) {
+                const tip = document.createElement('div');
+                tip.id = 'wc-a2hs';
+                tip.style.cssText = 'margin:0 auto 14px;max-width:300px;font-size:11.5px;line-height:1.5;' +
+                    'color:#cdd8ea;background:rgba(99,102,241,0.14);border:1px solid rgba(129,140,248,0.45);' +
+                    'border-radius:10px;padding:9px 11px;text-align:center;';
+                tip.innerHTML = 'For full-screen with no browser bar: tap the <b>Share</b> icon ' +
+                    '&#x2191; then <b>Add to Home Screen</b>, and launch from the icon.';
+                btnEl.parentNode.insertBefore(tip, btnEl);
+            }
+        } catch (e) {}
 
         const dismiss = () => {
             overlay.classList.add('hidden');
