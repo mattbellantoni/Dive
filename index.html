@@ -542,7 +542,7 @@
     <div class="hud-item">
         <div class="label">Altitude</div>
         <div class="value" id="hud-alt">13000</div>
-        <div class="unit">ft AGL</div>
+        <div class="unit" id="hud-alt-unit">ft AGL</div>
     </div>
     <div class="hud-item">
         <div class="label">Airspeed</div>
@@ -562,7 +562,7 @@
     <div class="hud-item">
         <div class="label">Descent</div>
         <div class="value" id="hud-descent">0</div>
-        <div class="unit">fpm</div>
+        <div class="unit" id="hud-descent-unit">fpm</div>
     </div>
 </div>
 <!-- Old heading HUD item removed — replaced by heading tape below -->
@@ -620,6 +620,14 @@
             <option value="">— Select a dropzone —</option>
         </select>
         <div id="settings-dz-info" style="font-size:10px;opacity:0.5;margin-top:4px;"></div>
+    </div>
+    <div class="control-group">
+        <label><span>Units</span></label>
+        <select id="unit-system" style="width:100%;padding:6px 8px;border-radius:6px;background:#1e293b;color:#e2e8f0;border:1px solid #475569;font-size:12px;">
+            <option value="imperial" selected>Imperial — ft, mph, lbs</option>
+            <option value="metric">Metric — m, km/h, kg</option>
+        </select>
+        <div style="font-size:9px;opacity:0.5;margin-top:3px;">Canopy speeds &amp; winds aloft stay in knots.</div>
     </div>
     <hr>
     <h3>Jumper Setup</h3>
@@ -930,7 +938,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.19 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.20 &middot; Jun 15, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -968,9 +976,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.19';
+const APP_VERSION = 'v2.20';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '12:05 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '3:35 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -1180,6 +1188,25 @@ const CONFIG = {
     LBS_TO_KG: 0.4536
 };
 
+// ==================== UNIT SYSTEM (imperial / metric) ====================
+// Canopy ground/air speed and winds aloft ALWAYS stay in knots (aviation convention);
+// everything else converts. Metric: altitude→m, descent→m/s, horiz speed→km/h, weight→kg.
+window._units = 'imperial';
+function unitsMetric() { return window._units === 'metric'; }
+// Altitude (input metres)
+function fmtAltValue(m) { return unitsMetric() ? Math.round(m) : Math.round(m * CONFIG.M_TO_FT); }
+function altUnitLabel() { return unitsMetric() ? 'm AGL' : 'ft AGL'; }
+// Vertical speed / descent (input m/s)
+function fmtDescentValue(mps) { return unitsMetric() ? Math.abs(mps).toFixed(1) : Math.round(Math.abs(mps) * CONFIG.M_TO_FT * 60); }
+function descentUnitLabel() { return unitsMetric() ? 'm/s' : 'fpm'; }
+// Horizontal speed for FREEFALL / general (input m/s) — canopy uses knots separately
+function horizSpeedConv() { return unitsMetric() ? 3.6 : CONFIG.MPS_TO_MPH; }   // m/s→km/h or mph
+function horizSpeedUnit() { return unitsMetric() ? 'km/h' : 'mph'; }
+// Weight (input lbs)
+function fmtWeight(lbs) { return unitsMetric() ? `${Math.round(lbs * CONFIG.LBS_TO_KG)} kg` : `${lbs} lbs`; }
+// Distance (input metres)
+function fmtDistance(m) { return unitsMetric() ? `${m.toFixed(1)} m` : `${(m * CONFIG.M_TO_FT).toFixed(0)} ft`; }
+
 const GOOGLE_API_KEY = '';  // Paste your Google Maps API key here for 3D tiles
 
 // ==================== DZ SELECTOR ====================
@@ -1339,6 +1366,7 @@ const CACHED_SETTING_IDS = [
     'wind-ground-dir', 'wind-upper-dir', 'gust-intensity',
     'gear-helmet', 'gear-shirt', 'gear-pants',
     'canopy-color1', 'canopy-color2', 'canopy-pattern', 'pilot-chute-color',
+    'unit-system',
     // NOTE: 'time-of-day' is intentionally NOT cached — it always loads to the
     // dropzone's real local time on each visit. Cloud/light pollution persist.
     'cloud-cover', 'light-pollution'
@@ -1375,6 +1403,9 @@ function restoreSettings() {
         const cmEl = document.getElementById('canopy-model');
         if (cmEl && !CANOPY_DB[cmEl.value]) cmEl.value = 'sfire';
         window._lastCanopyModel = cmEl ? cmEl.value : 'sfire';
+        // Sync the unit system from the restored value so first paint uses the right units
+        const usEl = document.getElementById('unit-system');
+        if (usEl) window._units = usEl.value || 'imperial';
         // Restore DZ
         if (settings._dz) {
             selectedDZ = settings._dz;
@@ -2077,11 +2108,11 @@ function getCanopyPerformance() {
 function updateCanopyDisplay() {
     const perf = getCanopyPerformance();
     perf.glideRatio = perf.forwardSpeed / perf.descentRate;
-    document.getElementById('exit-wt-display').textContent = `${perf.exitWeightLbs} lbs`;
+    document.getElementById('exit-wt-display').textContent = fmtWeight(perf.exitWeightLbs);
     document.getElementById('wl-display').textContent = `${perf.wingLoading.toFixed(2)} psf`;
     document.getElementById('ci-model').textContent = `${perf.canopy.name} ${perf.sizeSqFt}`;
     document.getElementById('ci-fwd').textContent = `${Math.round(perf.forwardSpeed * CONFIG.MPS_TO_KTS)} kt`;
-    document.getElementById('ci-desc').textContent = `${Math.round(perf.descentRate * CONFIG.M_TO_FT * 60)} fpm`;
+    document.getElementById('ci-desc').textContent = `${fmtDescentValue(perf.descentRate)} ${descentUnitLabel()}`;
     document.getElementById('ci-glide').textContent = `${perf.glideRatio.toFixed(1)} : 1`;
     const wlEl = document.getElementById('wl-display');
     if (perf.wingLoading < 0.8) wlEl.style.color = '#60a5fa';
@@ -7426,24 +7457,27 @@ class UIController {
 
     update(state, wind, canopyPerf, cameraAzimuth) {
         this.cameraAzimuth = cameraAzimuth || 0;
-        const altFt = Math.round(state.position.y * CONFIG.M_TO_FT);
-        const vspeedFpm = Math.round(Math.abs(state.velocity.y) * CONFIG.M_TO_FT * 60);
-        // Canopy speeds in KNOTS (matches winds-aloft units so ground = airspeed ± wind
-        // is directly readable); freefall stays in MPH per convention.
+        // Canopy ground/air speeds ALWAYS in KNOTS (matches winds-aloft so ground =
+        // airspeed ± wind reads directly). Freefall/other speeds follow the unit system
+        // (mph imperial / km/h metric). Altitude & descent follow the unit system too.
         const canopyUnits = (state.phase === 'canopy' || state.phase === 'deploying');
-        const spdConv = canopyUnits ? CONFIG.MPS_TO_KTS : CONFIG.MPS_TO_MPH;
-        const spdUnit = canopyUnits ? 'kt' : 'mph';
+        const spdConv = canopyUnits ? CONFIG.MPS_TO_KTS : horizSpeedConv();
+        const spdUnit = canopyUnits ? 'kt' : horizSpeedUnit();
         const groundSpeedMph = Math.round(state.getGroundSpeed() * spdConv);
         const airspeedMph = Math.round(state.getHorizontalAirspeed(wind) * spdConv);
 
-        this.el.alt.textContent = altFt.toLocaleString();
+        this.el.alt.textContent = fmtAltValue(state.position.y).toLocaleString();
         this.el.airspeed.textContent = airspeedMph;
         this.el.gspeed.textContent = groundSpeedMph;
         const auEl = document.getElementById('hud-airspeed-unit');
         const guEl = document.getElementById('hud-gspeed-unit');
+        const altUEl = document.getElementById('hud-alt-unit');
+        const descUEl = document.getElementById('hud-descent-unit');
         if (auEl) auEl.textContent = spdUnit;
         if (guEl) guEl.textContent = spdUnit;
-        this.el.descent.textContent = vspeedFpm.toLocaleString();
+        if (altUEl) altUEl.textContent = altUnitLabel();
+        if (descUEl) descUEl.textContent = descentUnitLabel();
+        this.el.descent.textContent = fmtDescentValue(state.velocity.y).toLocaleString();
         // Glide ratio: horizontal airspeed / vertical speed
         const horizAir = state.getHorizontalAirspeed(wind);
         const vertSpd = Math.abs(state.velocity.y);
@@ -7529,16 +7563,16 @@ class UIController {
         const livePanel = document.getElementById('live-flight-stats');
         if (state.phase === 'canopy' || state.phase === 'freefall' || state.phase === 'deploying') {
             livePanel.style.display = 'block';
-            // Forward airspeed in the active unit (kt under canopy, mph in freefall)
+            // Forward airspeed in the active unit (kt under canopy, mph/km·h in freefall)
             const fwdDisp = Math.round(state.getHorizontalAirspeed(wind) * spdConv);
-            const descFpm = Math.abs(state.velocity.y) * CONFIG.M_TO_FT * 60;
+            const descDisp = `${fmtDescentValue(state.velocity.y)} ${descentUnitLabel()}`;
             // Glide ratio: horizontal airspeed / vertical speed (both in m/s)
             const horizAir = state.getHorizontalAirspeed(wind);
             const vertSpd = Math.abs(state.velocity.y);
             const glideRatio = vertSpd > 0.5 ? (horizAir / vertSpd).toFixed(1) : '—';
 
             document.getElementById('live-fwd').textContent = `${fwdDisp} ${spdUnit}`;
-            document.getElementById('live-desc').textContent = `${Math.round(descFpm)} fpm`;
+            document.getElementById('live-desc').textContent = descDisp;
             document.getElementById('live-glide').textContent = `${glideRatio} : 1`;
             document.getElementById('live-gspd').textContent = `${groundSpeedMph} ${spdUnit}`;
             // Airspeed = HORIZONTAL airspeed (so airspeed and ground speed differ only by
@@ -7549,7 +7583,7 @@ class UIController {
             const fsPanel = document.getElementById('flight-stats-panel');
             fsPanel.style.display = 'block';
             document.getElementById('fs-glide').textContent = `${glideRatio} : 1`;
-            document.getElementById('fs-desc').textContent = `${Math.round(descFpm)} fpm`;
+            document.getElementById('fs-desc').textContent = descDisp;
             document.getElementById('fs-gspd').textContent = `${groundSpeedMph} ${spdUnit}`;
             document.getElementById('fs-airspd').textContent = `${airspeedMph} ${spdUnit}`;
         } else {
@@ -7739,10 +7773,11 @@ class UIController {
 
     showLandingScore(state, canopyPerf) {
         const dist = state.getDistanceFromTarget();
-        const groundSpeed = state.getGroundSpeed() * CONFIG.MPS_TO_MPH;
+        const groundSpeed = state.getGroundSpeed() * CONFIG.MPS_TO_MPH; // mph kept for thresholds below
         const vertSpeed = Math.abs(state.velocity.y) * CONFIG.M_TO_FT * 60; // fpm
-        this.el.scoreDistance.textContent = `${dist.toFixed(1)}m`;
-        this.el.scoreGroundspeed.textContent = `Ground speed: ${groundSpeed.toFixed(0)} mph`;
+        this.el.scoreDistance.textContent = fmtDistance(dist);
+        // Landing ground speed shown in knots (canopy convention)
+        this.el.scoreGroundspeed.textContent = `Ground speed: ${(state.getGroundSpeed() * CONFIG.MPS_TO_KTS).toFixed(0)} kt`;
         this.el.scoreWl.textContent = `${canopyPerf.canopy.name} ${canopyPerf.sizeSqFt} @ ${canopyPerf.wingLoading.toFixed(2)} psf`;
 
         let approach = 'Good approach!';
@@ -8849,6 +8884,16 @@ function setupUIControls() {
         saveSettings();
     });
     document.getElementById('canopy-model').addEventListener('change', onCanopyModelChange);
+    // Units (imperial / metric): update state + re-render the static readouts immediately
+    const unitSel = document.getElementById('unit-system');
+    if (unitSel) {
+        window._units = unitSel.value || 'imperial';
+        unitSel.addEventListener('change', () => {
+            window._units = unitSel.value;
+            try { updateJumpFromUI(); updateCanopyDisplay(); } catch (e) {}
+            saveSettings();
+        });
+    }
     document.getElementById('canopy-opacity').addEventListener('input', () => {
         const val = parseInt(document.getElementById('canopy-opacity').value);
         document.getElementById('canopy-opacity-val').textContent = `${val}%`;
@@ -8950,10 +8995,11 @@ function setDefaultTimeForDZ(lng, force) {
 function updateJumpFromUI() {
     const exitAlt = parseInt(document.getElementById('exit-alt').value);
     const deployAlt = parseInt(document.getElementById('deploy-alt').value);
-    document.getElementById('exit-alt-val').textContent = `${exitAlt.toLocaleString()} ft`;
-    document.getElementById('deploy-alt-val').textContent = `${deployAlt.toLocaleString()} ft`;
-    document.getElementById('body-wt-val').textContent = `${document.getElementById('body-weight').value} lbs`;
-    document.getElementById('gear-wt-val').textContent = `${document.getElementById('gear-weight').value} lbs`;
+    // Altitude sliders are in feet internally; display in the chosen unit.
+    document.getElementById('exit-alt-val').textContent = `${fmtAltValue(exitAlt * CONFIG.FT_TO_M).toLocaleString()} ${unitsMetric() ? 'm' : 'ft'}`;
+    document.getElementById('deploy-alt-val').textContent = `${fmtAltValue(deployAlt * CONFIG.FT_TO_M).toLocaleString()} ${unitsMetric() ? 'm' : 'ft'}`;
+    document.getElementById('body-wt-val').textContent = fmtWeight(parseInt(document.getElementById('body-weight').value));
+    document.getElementById('gear-wt-val').textContent = fmtWeight(parseInt(document.getElementById('gear-weight').value));
     document.getElementById('canopy-size-val').textContent = document.getElementById('canopy-size').value;
     updateCanopyDisplay();
 }
