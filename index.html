@@ -966,7 +966,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.05 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.06 &middot; Jun 15, 2026</div>
 
 <!-- Global Leaderboard -->
 <div id="leaderboard-btn" title="Global Leaderboard">&#x1F3C6;</div>
@@ -1020,9 +1020,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.05';
+const APP_VERSION = 'v2.06';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '8:58 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '9:58 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -4229,6 +4229,54 @@ class SceneManager {
             this.landingTargetGroup.add(ring);
         }
         this.landingTargetRadius = sizes[0]; // outer ring radius (for hit-testing)
+
+        // ---- NIGHT-JUMP GROUND FLARE ----
+        // A burning flare/beacon planted at the target so jumpers can spot the DZ from
+        // altitude during a night jump. Lives inside the target group so it follows the
+        // aim point when dragged. Hidden by day; shown automatically at night.
+        this.dzFlare = new THREE.Group();
+        // Soft radial glow sprite — additive so it reads as a bright point from far away
+        const gcv = document.createElement('canvas'); gcv.width = gcv.height = 128;
+        const gctx = gcv.getContext('2d');
+        const grd = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        grd.addColorStop(0.0, 'rgba(255,238,170,1)');
+        grd.addColorStop(0.25, 'rgba(255,150,40,0.85)');
+        grd.addColorStop(0.6, 'rgba(255,80,10,0.32)');
+        grd.addColorStop(1.0, 'rgba(255,60,0,0)');
+        gctx.fillStyle = grd; gctx.fillRect(0, 0, 128, 128);
+        const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(gcv), color: 0xffffff,
+            transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        glowSprite.scale.set(160, 160, 1);
+        glowSprite.position.y = 10;
+        this.dzFlare.add(glowSprite); this.dzFlareGlow = glowSprite;
+        // Flame body + bright inner core
+        const flame = new THREE.Mesh(
+            new THREE.ConeGeometry(2.4, 10, 10),
+            new THREE.MeshBasicMaterial({ color: 0xff7a18, transparent: true, opacity: 0.95, depthWrite: false })
+        );
+        flame.position.y = 5; this.dzFlare.add(flame); this.dzFlame = flame;
+        const core = new THREE.Mesh(
+            new THREE.ConeGeometry(1.1, 6.5, 8),
+            new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.95, depthWrite: false })
+        );
+        core.position.y = 3.8; this.dzFlare.add(core); this.dzFlameCore = core;
+        // Vertical light pillar — lets the beacon be picked up from exit altitude
+        const beam = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.6, 4.5, 2600, 14, 1, true),
+            new THREE.MeshBasicMaterial({
+                color: 0xff7a18, transparent: true, opacity: 0.10,
+                blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+            })
+        );
+        beam.position.y = 1300; this.dzFlare.add(beam); this.dzFlareBeam = beam;
+        // Local ground illumination
+        const flareLight = new THREE.PointLight(0xff7a2a, 0, 500, 2);
+        flareLight.position.y = 12; this.dzFlare.add(flareLight); this.dzFlareLight = flareLight;
+        this.dzFlare.visible = false;
+        this.landingTargetGroup.add(this.dzFlare);
+
         if (window._targetPos) this.landingTargetGroup.position.set(window._targetPos.x, 0, window._targetPos.z);
         this.scene.add(this.landingTargetGroup);
 
@@ -5131,6 +5179,22 @@ class SceneManager {
     // True between sunset and sunrise (FAR 105.19 night window).
     isNightJump() {
         return !!(this._sun && this._sun.altitude < 0);
+    }
+
+    // Burning DZ flare/beacon — visible only at night; flickers like a real flame.
+    updateDZFlare(dt) {
+        if (!this.dzFlare) return;
+        const night = this.isNightJump();
+        if (this.dzFlare.visible !== night) this.dzFlare.visible = night;
+        if (!night) { if (this.dzFlareLight) this.dzFlareLight.intensity = 0; return; }
+        this._flareT = (this._flareT || 0) + (dt || 0.016);
+        const t = this._flareT;
+        const flick = 0.85 + 0.15 * Math.sin(t * 13) + 0.08 * Math.sin(t * 27.3);
+        if (this.dzFlame) { this.dzFlame.scale.set(1, flick, 1); this.dzFlame.material.opacity = 0.85 + 0.1 * Math.sin(t * 19); }
+        if (this.dzFlameCore) this.dzFlameCore.scale.set(1, 0.9 + 0.2 * Math.sin(t * 23), 1);
+        if (this.dzFlareGlow) { const s = 150 + 25 * Math.sin(t * 7) + 15 * Math.sin(t * 17); this.dzFlareGlow.scale.set(s, s, 1); }
+        if (this.dzFlareLight) this.dzFlareLight.intensity = 2.4 + 0.7 * Math.sin(t * 15);
+        if (this.dzFlareBeam) this.dzFlareBeam.material.opacity = 0.10 + 0.035 * Math.sin(t * 9);
     }
 
     // Show/animate the required night-jump lighting based on flight phase.
@@ -8323,6 +8387,9 @@ function gameLoop(timestamp) {
     if (windSystem && sceneManager.clouds) {
         sceneManager.updateClouds(dt, windSystem, sceneManager.camera.position);
     }
+
+    // Night-jump DZ flare burns whenever it's dark — even before exit and after landing
+    if (sceneManager) sceneManager.updateDZFlare(dt);
 
     sceneManager.render();
     requestAnimationFrame(gameLoop);
