@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.32 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.35 &middot; Jun 18, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.32';
-const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '10:02 PM ET'; // time of last update (US Eastern)
+const APP_VERSION = 'v2.35';
+const APP_UPDATED = 'June 18, 2026';
+const APP_UPDATED_TIME = '12:16 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -4467,9 +4467,10 @@ class SceneManager {
             this.orbitControls.maxDistance = Math.max(exitAltM * 3, 18000);
             if (!this._exitViewSet) {
                 this._exitViewSet = true;
-                // Position camera at exit altitude, offset slightly south so you look down at an angle
+                // Position camera at exit altitude, offset to the south (−Z) looking north so
+                // the map is oriented North-up (was +Z, which put South at the top / upside down).
                 const offset = exitAltM * 0.15;
-                this.camera.position.set(ex, exitAltM, ez + offset);
+                this.camera.position.set(ex, exitAltM, ez - offset);
                 this.orbitControls.target.set(ex, 0, ez);
                 this.camera.near = 10;
                 this.camera.far = Math.max(exitAltM * 15, 50000); // far enough for 10km+ exit offset
@@ -8145,12 +8146,19 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
         const Wx = Math.sin(toRadW), Wz = Math.cos(toRadW);   // unit blow-to vector
         const along = Wx * fwd.Fx + Wz * fwd.Fz;              // + tailwind / − headwind
         const cross = Wx * Rx + Wz * Rz;                      // + wind flows to your right
-        // Arrow points the direction the wind is BLOWING (its flow), relative to the nose
-        // (up = ahead). Tailwind blows you forward → arrow up; headwind blows past you to
-        // the rear → arrow down; wind from the right blows to the left → arrow left.
+        // Each camera renders a different frame, so apply per-phase sign corrections so the
+        // arrow + label match the on-screen drift:
+        //   canopy/deploying (chase cam): cross mirrored, fore/aft normal
+        //   freefall (top-down, up=heading): cross mirrored AND fore/aft flipped
+        //   aircraft (pre-flight exit, now North-up after the camera flip): no correction
+        let cSign = -1, aSign = 1;
+        if (phase === 'freefall') { cSign = -1; aSign = -1; }
+        else if (phase === 'aircraft') { cSign = 1; aSign = 1; }
+        const cDisp = cross * cSign;
+        const aDisp = along * aSign;
         const len = 30;
-        const x2 = 40 + cross * len;
-        const y2 = 40 - along * len;
+        const x2 = 40 + cDisp * len;
+        const y2 = 40 - aDisp * len;
 
         const line = document.getElementById('wind-arrow-line');
         line.setAttribute('x1', '40');
@@ -8167,8 +8175,8 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
         // Label straight from the projection so it ALWAYS matches ground-speed behavior:
         // when the indicator says HEADWIND, ground speed IS slower, and vice versa.
         let windLabel;
-        if (Math.abs(along) >= Math.abs(cross)) windLabel = along > 0 ? 'TAILWIND' : 'HEADWIND';
-        else windLabel = cross < 0 ? 'CROSS R' : 'CROSS L';  // cross < 0 = wind from your right
+        if (Math.abs(aDisp) >= Math.abs(cDisp)) windLabel = aDisp > 0 ? 'TAILWIND' : 'HEADWIND';
+        else windLabel = cDisp > 0 ? 'CROSS L' : 'CROSS R';  // matches the on-screen arrow
         document.getElementById('wind-indicator-label').textContent = windLabel;
     }
 }
