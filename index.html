@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.28 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.31 &middot; Jun 15, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.28';
+const APP_VERSION = 'v2.31';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '9:33 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '9:59 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -4219,8 +4219,42 @@ class SceneManager {
         this.exitMarkerGroup.add(planeIcon);
         this.exitPlaneIcon = planeIcon;
 
-        // Label
-        // (Can't easily do 3D text without font loader, so we skip it — the blue circle is distinct enough)
+        // ---- Compass rose (N/E/S/W + degree bearings) around the ring ----
+        // Camera-facing sprites so they stay legible from any angle. Bearings map to true
+        // world directions: 0°=N=+Z, 90°=E=+X, 180°=S=−Z, 270°=W=−X
+        // (world position for bearing b: x = R·sin b, z = R·cos b).
+        const makeLabel = (text, color, px, scale) => {
+            const c = document.createElement('canvas'); c.width = 80; c.height = 64;
+            const cx = c.getContext('2d');
+            cx.fillStyle = color;
+            cx.font = `bold ${px}px system-ui, sans-serif`;
+            cx.textAlign = 'center'; cx.textBaseline = 'middle';
+            cx.fillText(text, 40, 34);
+            const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: new THREE.CanvasTexture(c), transparent: true,
+                depthTest: false, depthWrite: false
+            }));
+            sp.scale.set(scale * 1.25, scale, 1);
+            sp.renderOrder = 10;
+            return sp;
+        };
+        // Cardinal letters (inner)
+        const RC = 13;
+        const cardinals = [['N', 0, '#ff5a5a'], ['E', 90, '#cfe3ff'], ['S', 180, '#cfe3ff'], ['W', 270, '#cfe3ff']];
+        for (const [l, b, col] of cardinals) {
+            const r = b * Math.PI / 180;
+            const sp = makeLabel(l, col, 46, 5);
+            sp.position.set(Math.sin(r) * RC, 1.5, Math.cos(r) * RC);
+            this.exitMarkerGroup.add(sp);
+        }
+        // Degree bearings every 30° (outer ring)
+        const RD = 21;
+        for (let b = 0; b < 360; b += 30) {
+            const r = b * Math.PI / 180;
+            const sp = makeLabel(b + '°', '#9ec3ff', 26, 3.4);
+            sp.position.set(Math.sin(r) * RD, 1.5, Math.cos(r) * RD);
+            this.exitMarkerGroup.add(sp);
+        }
 
         this.exitMarkerGroup.position.set(0, 1.5, 0);
         this.exitMarkerGroup.renderOrder = 8;
@@ -8111,10 +8145,12 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
         const Wx = Math.sin(toRadW), Wz = Math.cos(toRadW);   // unit blow-to vector
         const along = Wx * fwd.Fx + Wz * fwd.Fz;              // + tailwind / − headwind
         const cross = Wx * Rx + Wz * Rz;                      // + wind flows to your right
-        // Arrow points where the wind flows relative to the nose (up = ahead)
+        // Arrow points where the wind is coming FROM, relative to the nose (up = ahead) —
+        // i.e. it points INTO the wind, matching the HEADWIND / TAILWIND / CROSS-R/L label
+        // and the winds-aloft "from" bearing. (It's the negative of the flow direction.)
         const len = 30;
-        const x2 = 40 + cross * len;
-        const y2 = 40 - along * len;
+        const x2 = 40 - cross * len;
+        const y2 = 40 + along * len;
 
         const line = document.getElementById('wind-arrow-line');
         line.setAttribute('x1', '40');
