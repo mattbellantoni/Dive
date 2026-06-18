@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.24 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.28 &middot; Jun 15, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.24';
+const APP_VERSION = 'v2.28';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '4:45 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '9:33 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -5029,11 +5029,12 @@ class SceneManager {
             // loss (gray screen) after rotating. The bright mesh is enough.
             return m;
         };
-        // Green on the arms, red on the legs — classic chemlight layout
-        if (this.leftForearm)  mkGlow(this.leftForearm,  0x39ff14, -0.28, 0.07);
-        if (this.rightForearm) mkGlow(this.rightForearm, 0x39ff14, -0.28, 0.07);
-        if (this.leftLowerLeg)  mkGlow(this.leftLowerLeg,  0xff2a2a, -0.26, 0.09);
-        if (this.rightLowerLeg) mkGlow(this.rightLowerLeg, 0xff2a2a, -0.26, 0.09);
+        // Nav-light convention by SIDE: GREEN on the jumper's right arm + right leg,
+        // RED on the left arm + left leg.
+        if (this.rightForearm) mkGlow(this.rightForearm, 0x39ff14, -0.28, 0.07); // right arm = green
+        if (this.rightLowerLeg) mkGlow(this.rightLowerLeg, 0x39ff14, -0.26, 0.09); // right leg = green
+        if (this.leftForearm)  mkGlow(this.leftForearm,  0xff2a2a, -0.28, 0.07); // left arm  = red
+        if (this.leftLowerLeg)  mkGlow(this.leftLowerLeg,  0xff2a2a, -0.26, 0.09); // left leg  = red
 
         // Helmet strobe (the FAR-required 3-statute-mile light)
         const strobe = new THREE.Mesh(
@@ -5085,9 +5086,10 @@ class SceneManager {
         if (this.glowSticks) {
             for (const g of this.glowSticks) g.visible = glowOn;
         }
-        // Strobe: FAR 105.19 requires it from open canopy until landing. We also run it
-        // during deployment for realism. It blinks ~1.4 Hz.
-        const strobeActive = night && (phase === 'deploying' || phase === 'canopy');
+        // Strobe: worn lit the whole night skydive — visible in freefall too (jumpers run
+        // their strobe from exit), through deployment and canopy. (FAR 105.19 only mandates
+        // it from open canopy to landing, but it's on the whole way down.) Blinks ~1.4 Hz.
+        const strobeActive = night && (phase === 'freefall' || phase === 'deploying' || phase === 'canopy');
         if (this.strobe) {
             if (strobeActive) {
                 this._strobePhase += dt;
