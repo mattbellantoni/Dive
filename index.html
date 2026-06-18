@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.31 &middot; Jun 15, 2026</div>
+<div id="version-badge">v2.32 &middot; Jun 15, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.31';
+const APP_VERSION = 'v2.32';
 const APP_UPDATED = 'June 15, 2026';
-const APP_UPDATED_TIME = '9:59 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '10:02 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -8145,12 +8145,12 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
         const Wx = Math.sin(toRadW), Wz = Math.cos(toRadW);   // unit blow-to vector
         const along = Wx * fwd.Fx + Wz * fwd.Fz;              // + tailwind / − headwind
         const cross = Wx * Rx + Wz * Rz;                      // + wind flows to your right
-        // Arrow points where the wind is coming FROM, relative to the nose (up = ahead) —
-        // i.e. it points INTO the wind, matching the HEADWIND / TAILWIND / CROSS-R/L label
-        // and the winds-aloft "from" bearing. (It's the negative of the flow direction.)
+        // Arrow points the direction the wind is BLOWING (its flow), relative to the nose
+        // (up = ahead). Tailwind blows you forward → arrow up; headwind blows past you to
+        // the rear → arrow down; wind from the right blows to the left → arrow left.
         const len = 30;
-        const x2 = 40 - cross * len;
-        const y2 = 40 + along * len;
+        const x2 = 40 + cross * len;
+        const y2 = 40 - along * len;
 
         const line = document.getElementById('wind-arrow-line');
         line.setAttribute('x1', '40');
