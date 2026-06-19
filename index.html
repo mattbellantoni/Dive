@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.36 &middot; Jun 19, 2026</div>
+<div id="version-badge">v2.37 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.36';
+const APP_VERSION = 'v2.37';
 const APP_UPDATED = 'June 19, 2026';
-const APP_UPDATED_TIME = '2:20 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '2:45 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -4241,10 +4241,14 @@ class SceneManager {
         // Cardinal letters (inner)
         const RC = 13;
         const cardinals = [['N', 0, '#ff5a5a'], ['E', 90, '#cfe3ff'], ['S', 180, '#cfe3ff'], ['W', 270, '#cfe3ff']];
+        // NOTE: Z is negated (−cos) so that, with the North-of-target exit camera
+        // (screen-top = world −Z, screen-right = world +X), N renders at the TOP and
+        // E to the RIGHT — a conventional north-up / east-right compass over a
+        // correctly-oriented map.
         for (const [l, b, col] of cardinals) {
             const r = b * Math.PI / 180;
             const sp = makeLabel(l, col, 46, 5);
-            sp.position.set(Math.sin(r) * RC, 1.5, Math.cos(r) * RC);
+            sp.position.set(Math.sin(r) * RC, 1.5, -Math.cos(r) * RC);
             this.exitMarkerGroup.add(sp);
         }
         // Degree bearings every 30° (outer ring)
@@ -4252,7 +4256,7 @@ class SceneManager {
         for (let b = 0; b < 360; b += 30) {
             const r = b * Math.PI / 180;
             const sp = makeLabel(b + '°', '#9ec3ff', 26, 3.4);
-            sp.position.set(Math.sin(r) * RD, 1.5, Math.cos(r) * RD);
+            sp.position.set(Math.sin(r) * RD, 1.5, -Math.cos(r) * RD);
             this.exitMarkerGroup.add(sp);
         }
 
@@ -4467,10 +4471,13 @@ class SceneManager {
             this.orbitControls.maxDistance = Math.max(exitAltM * 3, 18000);
             if (!this._exitViewSet) {
                 this._exitViewSet = true;
-                // Position camera at exit altitude, offset to the south (−Z) looking north so
-                // the map is oriented North-up (was +Z, which put South at the top / upside down).
+                // Position camera NORTH of the target (+Z) looking south. With the satellite
+                // texture's orientation, this renders the TERRAIN North-up and East-right —
+                // matching the 2D dropzone map. (Viewing from the south instead only made the
+                // compass read North-up while flipping the actual ground upside-down.) The
+                // compass-label placement below is mirrored in Z to match this camera.
                 const offset = exitAltM * 0.15;
-                this.camera.position.set(ex, exitAltM, ez - offset);
+                this.camera.position.set(ex, exitAltM, ez + offset);
                 this.orbitControls.target.set(ex, 0, ez);
                 this.camera.near = 10;
                 this.camera.far = Math.max(exitAltM * 15, 50000); // far enough for 10km+ exit offset
@@ -8170,7 +8177,7 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
         //   aircraft (pre-flight exit, now North-up after the camera flip): no correction
         let cSign = -1, aSign = 1;
         if (phase === 'freefall') { cSign = -1; aSign = -1; }
-        else if (phase === 'aircraft') { cSign = 1; aSign = 1; }
+        else if (phase === 'aircraft') { cSign = -1; aSign = -1; }
         const cDisp = cross * cSign;
         const aDisp = along * aSign;
         const len = 30;
@@ -9247,7 +9254,7 @@ window.resetSim = function() {
     if (sceneManager.riserLines) sceneManager.riserLines.forEach(r => r.visible = false);
     sceneManager.aircraft.visible = false;
     sceneManager._exitViewSet = false; // re-snap exit view camera on next frame
-    sceneManager.camera.position.set(0, exitAlt * CONFIG.FT_TO_M + 20, -50);
+    sceneManager.camera.position.set(0, exitAlt * CONFIG.FT_TO_M + 20, 50);
     // Expand desktop panels on reset
     const windPanel = document.getElementById('wind-panel');
     const jumpPanel = document.getElementById('jump-panel');
