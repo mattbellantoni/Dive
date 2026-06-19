@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.37 &middot; Jun 19, 2026</div>
+<div id="version-badge">v2.38 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.37';
+const APP_VERSION = 'v2.38';
 const APP_UPDATED = 'June 19, 2026';
-const APP_UPDATED_TIME = '2:45 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '3:05 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -8177,7 +8177,7 @@ function updateWindDisplays(phase, altM, windObj, jumperHeading) {
         //   aircraft (pre-flight exit, now North-up after the camera flip): no correction
         let cSign = -1, aSign = 1;
         if (phase === 'freefall') { cSign = -1; aSign = -1; }
-        else if (phase === 'aircraft') { cSign = -1; aSign = -1; }
+        else if (phase === 'aircraft') { cSign = 1; aSign = 1; }  // start-jump map: arrow points where wind blows TO
         const cDisp = cross * cSign;
         const aDisp = along * aSign;
         const len = 30;
