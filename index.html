@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.40 &middot; Jun 19, 2026</div>
+<div id="version-badge">v2.41 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.40';
+const APP_VERSION = 'v2.41';
 const APP_UPDATED = 'June 19, 2026';
-const APP_UPDATED_TIME = '3:55 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '4:15 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -3155,17 +3155,25 @@ class PhysicsEngine {
         // Dive speed: turns load the canopy, nose drops, speed INCREASES
         // A sustained full toggle turn on an SFire might add 2-4 m/s over several seconds
         const turnMagnitude = Math.abs(this.turnRate);
-        const diveAccumRate = turnMagnitude * 1.5; // gentle buildup
-        const diveDecayRate = 2.0; // bleeds off over ~2-3 seconds when level
+        const diveAccumRate = turnMagnitude * 2.0; // builds faster the harder you turn
+        const diveDecayRate = 1.6; // recovery arc bleeds over ~3-4 s (longer, smoother)
+        const _prevTurnMag = this._prevTurnMag || 0;
 
         if (turnMagnitude > 0.15) {
-            // In a turn: dive speed builds gradually
+            // In a turn: dive speed builds — the nose drops and the canopy accelerates
             this.diveSpeed += diveAccumRate * dt;
-            this.diveSpeed = Math.min(this.diveSpeed, 5); // cap at ~5 m/s extra (~11 mph)
+            this.diveSpeed = Math.min(this.diveSpeed, 8); // cap ~8 m/s extra (~18 mph) in aggressive turns
         } else {
-            // Wings level: recovery arc — speed bleeds off
+            // Wings level: recovery arc — speed bleeds off gradually
             this.diveSpeed = Math.max(0, this.diveSpeed - diveDecayRate * dt);
         }
+        // Exiting a hard turn kicks off the RECOVERY ARC: the canopy keeps diving as you
+        // swing back under it (speed peaks at the bottom), then planes out and floats.
+        // Modeled as a nose-down phugoid kick scaled by how hard the turn was.
+        if (_prevTurnMag > 0.4 && turnMagnitude < 0.2) {
+            this.phugoidVel -= Math.min(_prevTurnMag, 1.3) * 1.0;
+        }
+        this._prevTurnMag = turnMagnitude;
 
         // ============ SPEED INPUTS ============
         const baseFwd = canopyPerf.forwardSpeed;
@@ -3331,7 +3339,11 @@ class PhysicsEngine {
         // the wing balloons up first, then dives, then settles.
         const release = (this.prevBrakeCmd || 0) - brakeCmd;
         if (release > 0.05) {
-            this.phugoidVel += release * 2.5; // balloon up, then the cycle carries it down
+            // Releasing toggles/flare to full flight: the canopy SURGES forward and DIVES
+            // (pitching you back behind it), then swings under and recovers. That is a
+            // nose-DOWN kick (negative phugoid), not a float. The deeper/faster the
+            // release, the more violent the surge.
+            this.phugoidVel -= release * 3.5;
         }
         this.prevBrakeCmd = brakeCmd;
         // Wind gusts load the wing and trip the same flight cycle
@@ -3341,17 +3353,19 @@ class PhysicsEngine {
             }
             this.prevGustEvent = windSystem.gustEvent || 0;
         }
-        // Integrate the damped oscillator (period ~8s, zeta ~0.3 → decays in 7-10s)
-        const phugoidPeriod = 8.0;
+        // Integrate the damped oscillator. Real canopy surge/recovery cycles in ~4-5s,
+        // not 8 — a faster period gives the lively pitch you feel coming out of brakes,
+        // a turn, or a gust. zeta ~0.28 → a couple of visible swings before it settles.
+        const phugoidPeriod = 4.5;
         const phOmega = (2 * Math.PI) / phugoidPeriod;
-        const phZeta = 0.30;
+        const phZeta = 0.28;
         this.phugoidVel += (-phOmega * phOmega * this.phugoid - 2 * phZeta * phOmega * this.phugoidVel) * dt;
         this.phugoid += this.phugoidVel * dt;
         this.phugoid = Math.max(-1, Math.min(1, this.phugoid));
         // Apply to flight — but not during the scripted flare arc, which owns the wing
         if (!(input.flare || ft > 0.1)) {
-            descRate *= (1 - this.phugoid * 0.35);   // float reduces descent, dive increases it
-            finalFwdSpeed *= (1 - this.phugoid * 0.12); // dive speeds up, float bleeds speed
+            descRate *= (1 - this.phugoid * 0.40);   // float reduces descent, dive increases it
+            finalFwdSpeed *= (1 - this.phugoid * 0.18); // dive speeds up, float bleeds speed
         }
 
         // Rear-riser slowdown applies to the final forward speed
