@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.35 &middot; Jun 18, 2026</div>
+<div id="version-badge">v2.36 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.35';
-const APP_UPDATED = 'June 18, 2026';
-const APP_UPDATED_TIME = '12:16 PM ET'; // time of last update (US Eastern)
+const APP_VERSION = 'v2.36';
+const APP_UPDATED = 'June 19, 2026';
+const APP_UPDATED_TIME = '2:20 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -7586,9 +7586,22 @@ class UIController {
         const groundSpeedMph = Math.round(state.getGroundSpeed() * spdConv);
         const airspeedMph = Math.round(state.getHorizontalAirspeed(wind) * spdConv);
 
+        // ===== PENETRATION =====
+        // Ground speed alone is an unsigned magnitude — in a strong headwind you can be
+        // blown BACKWARD over the ground while the number still reads high. Project the
+        // GROUND velocity onto the direction the jumper faces: negative = losing ground
+        // (not penetrating). Show a minus sign + red so backsliding is unmistakable.
+        const _phHeading = state.phase === 'freefall' ? (state.ffYaw || 0) : (state.heading || 0);
+        const _phFwd = jumperForwardVec(state.phase, _phHeading);
+        const alongGround = state.velocity.x * _phFwd.Fx + state.velocity.z * _phFwd.Fz;
+        const backingUp = alongGround < -0.15 && (state.phase === 'freefall' || state.phase === 'canopy' || state.phase === 'deploying');
+        const groundSpeedStr = (backingUp ? '−' : '') + groundSpeedMph;
+        const gspdColor = backingUp ? '#ef4444' : '';
+
         this.el.alt.textContent = fmtAltValue(state.position.y).toLocaleString();
         this.el.airspeed.textContent = airspeedMph;
-        this.el.gspeed.textContent = groundSpeedMph;
+        this.el.gspeed.textContent = groundSpeedStr;
+        this.el.gspeed.style.color = gspdColor;
         const auEl = document.getElementById('hud-airspeed-unit');
         const guEl = document.getElementById('hud-gspeed-unit');
         const altUEl = document.getElementById('hud-alt-unit');
@@ -7694,7 +7707,9 @@ class UIController {
             document.getElementById('live-fwd').textContent = `${fwdDisp} ${spdUnit}`;
             document.getElementById('live-desc').textContent = descDisp;
             document.getElementById('live-glide').textContent = `${glideRatio} : 1`;
-            document.getElementById('live-gspd').textContent = `${groundSpeedMph} ${spdUnit}`;
+            const _lg = document.getElementById('live-gspd');
+            _lg.textContent = `${groundSpeedStr} ${spdUnit}`;
+            _lg.style.color = gspdColor;
             // Airspeed = HORIZONTAL airspeed (so airspeed and ground speed differ only by
             // the wind component) — NOT total 3D speed, which previously inflated it.
             document.getElementById('live-airspd').textContent = `${airspeedMph} ${spdUnit}`;
@@ -7704,7 +7719,9 @@ class UIController {
             fsPanel.style.display = 'block';
             document.getElementById('fs-glide').textContent = `${glideRatio} : 1`;
             document.getElementById('fs-desc').textContent = descDisp;
-            document.getElementById('fs-gspd').textContent = `${groundSpeedMph} ${spdUnit}`;
+            const _fg = document.getElementById('fs-gspd');
+            _fg.textContent = `${groundSpeedStr} ${spdUnit}`;
+            _fg.style.color = gspdColor;
             document.getElementById('fs-airspd').textContent = `${airspeedMph} ${spdUnit}`;
         } else {
             livePanel.style.display = 'none';
