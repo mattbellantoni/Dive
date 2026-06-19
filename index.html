@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.38 &middot; Jun 19, 2026</div>
+<div id="version-badge">v2.39 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.38';
+const APP_VERSION = 'v2.39';
 const APP_UPDATED = 'June 19, 2026';
-const APP_UPDATED_TIME = '3:05 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '3:25 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -7601,7 +7601,15 @@ class UIController {
         const _phHeading = state.phase === 'freefall' ? (state.ffYaw || 0) : (state.heading || 0);
         const _phFwd = jumperForwardVec(state.phase, _phHeading);
         const alongGround = state.velocity.x * _phFwd.Fx + state.velocity.z * _phFwd.Fz;
-        const backingUp = alongGround < -0.15 && (state.phase === 'freefall' || state.phase === 'canopy' || state.phase === 'deploying');
+        // Only treat negative ground speed as "backing up" when you have enough forward
+        // AIRSPEED that penetration is a real concept — i.e. you're actively flying forward
+        // (canopy ~9-11 m/s, track ~30 m/s) and the wind is overpowering you. In a low-
+        // airspeed belly/sit drift you're just riding the wind, so show ground speed as a
+        // positive magnitude (GPS-style) to match what you see on screen.
+        const _hAirMs = state.getHorizontalAirspeed(wind);
+        const _canBackslide = state.phase === 'canopy' || state.phase === 'deploying' ||
+            (state.phase === 'freefall' && _hAirMs > 5);
+        const backingUp = alongGround < -0.15 && _canBackslide;
         const groundSpeedStr = (backingUp ? '−' : '') + groundSpeedMph;
         const gspdColor = backingUp ? '#ef4444' : '';
 
