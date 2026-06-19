@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.39 &middot; Jun 19, 2026</div>
+<div id="version-badge">v2.40 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.39';
+const APP_VERSION = 'v2.40';
 const APP_UPDATED = 'June 19, 2026';
-const APP_UPDATED_TIME = '3:25 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '3:55 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -3091,8 +3091,19 @@ class PhysicsEngine {
     }
 
     updateCanopy(dt, wind, input, canopyPerf) {
+        // ============ STALL / COLLAPSE THRESHOLD ============
+        // A deep-brake (full) flare can be HELD for several seconds before the wing
+        // stalls. Full flare is reached at flareTimer = 2.0s, so a base stall at 7.0s
+        // gives ≥5 s of FULL flare. A headwind keeps relative airflow over the wing, so
+        // it stays pressurized far longer — in strong wind a held flare won't collapse.
+        const _wAlt = (typeof windSystem !== 'undefined' && windSystem)
+            ? windSystem.getWindAtAltitude(this.position.y) : { x: 0, z: 0 };
+        const _wKts = Math.sqrt(_wAlt.x * _wAlt.x + _wAlt.z * _wAlt.z) / 0.5144;
+        let stallStart = 7.0 + _wKts * 0.7;      // calm → 7s (5s full flare); 10kt → 14s
+        if (_wKts >= 14) stallStart = Infinity;  // strong wind: a held flare can't collapse
+        this.stallStart = stallStart;            // expose so the VISUAL collapse uses the same threshold
         // ============ STALL CHECK — disable all inputs if canopy is stalled ============
-        const isStalled = (this.flareTimer || 0) > 6.0;
+        const isStalled = (this.flareTimer || 0) > stallStart;
 
         // ============ TURN DYNAMICS ============
         // Heading = compass bearing (0=N, PI/2=E, PI=S). Increasing = CW = right turn.
@@ -3181,7 +3192,7 @@ class PhysicsEngine {
         if (!isStalled && input.down) speedRatio = 0.75;
 
         if (input.flare) {
-            this.flareTimer = Math.min((this.flareTimer || 0) + dt, 9.0);
+            this.flareTimer = Math.min((this.flareTimer || 0) + dt, 60.0);
             if (!isStalled) speedRatio = canopyPerf.flareSpeedBoost;
         } else {
             this.flareTimer = Math.max((this.flareTimer || 0) - dt * 2, 0);
@@ -3290,16 +3301,18 @@ class PhysicsEngine {
                 descRate = Math.max(descRate, -0.8); // cap climb rate
                 // Speed gradually bleeds as energy converts to altitude
                 finalFwdSpeed = fwdSpeed * (1.3 - t * 0.5);
-            } else if (ft < 6.0) {
-                // Phase 3 (2.0-6.0s): Extended level float — the canopy hangs in deep
-                // brakes, barely descending and slowly bleeding speed. It will NOT
-                // collapse here; a stall only begins past 6 seconds of held flare.
-                const t = (ft - 2.0) / 4.0;
+            } else if (ft < stallStart) {
+                // Phase 3 (2.0s → stall): Extended deep-brake float. The canopy hangs in
+                // FULL flare, barely descending and slowly bleeding speed. It settles to a
+                // steady gentle float and will NOT collapse until `stallStart` — ≥5s of
+                // full flare in calm air, far longer or never in a headwind.
+                const t = Math.min((ft - 2.0) / 4.0, 1);
                 descRate = baseDesc * (0.08 + t * 0.22);
                 finalFwdSpeed = fwdSpeed * (0.8 - t * 0.3);
             } else {
-                // Phase 4 (6.0s+): Stall — held too long, canopy drops, speed dies
-                const t = Math.min(ft - 6.0, 2.0);
+                // Phase 4 (past stallStart): Stall — held too long in light wind, canopy
+                // drops out, speed dies. (Unreachable when stallStart = Infinity.)
+                const t = Math.min(ft - stallStart, 2.0);
                 descRate = baseDesc * (0.3 + t * 2.0);
                 finalFwdSpeed = baseFwd * Math.max(0.1, 0.45 - t * 0.2);
                 this.diveSpeed = 0;
@@ -5563,6 +5576,7 @@ class SceneManager {
         const gustE = (windSystem && windSystem.gustEvent) || 0;
         const turnRate = Math.abs(state.turnRate || 0);
         const flareT = state.flareTimer || 0;
+        const _stall = state.stallStart || 7.0;   // wind-dependent collapse threshold (Infinity in strong wind)
 
         for (let iz = 0; iz <= sz; iz++) {
             for (let ix = 0; ix <= sx; ix++) {
@@ -5620,8 +5634,8 @@ class SceneManager {
                 // Stall: vertex deformation removed — stall uses group-level
                 // scale/rotate transforms for realistic crumpled fabric look.
                 // Only minor vertex flutter during early stall for fabric loosening effect
-                if (flareT > 6.0) {
-                    const stallT = Math.min((flareT - 6.0) / 1.5, 1);
+                if (flareT > _stall) {
+                    const stallT = Math.min((flareT - _stall) / 1.5, 1);
                     // Slight flutter as cells lose pressure (not dramatic deformation)
                     stallCollapse = stallT * 0.3 * Math.sin(t * 5 + ix * 0.7 + iz * 0.9);
                 }
@@ -5653,8 +5667,8 @@ class SceneManager {
                     const tipDist = Math.abs(u - 0.5) * 2;
 
                     let bStallCollapse = 0;
-                    if (flareT > 6.0) {
-                        const stallT = Math.min((flareT - 6.0) / 1.5, 1);
+                    if (flareT > _stall) {
+                        const stallT = Math.min((flareT - _stall) / 1.5, 1);
                         // Minor flutter only — main stall handled by group transforms
                         bStallCollapse = stallT * 0.25 * Math.sin(t * 5 + ix * 0.7 + iz * 0.9);
                     }
@@ -5670,8 +5684,8 @@ class SceneManager {
 
         // ---- STALL: collapse secondary meshes (nose, ribs, tips, trailing edge) ----
         // These elements must also visually collapse when the canopy stalls
-        const stallActive = flareT > 6.0;
-        const stallT = stallActive ? Math.min((flareT - 6.0) / 1.5, 1) : 0;
+        const stallActive = flareT > _stall;
+        const stallT = stallActive ? Math.min((flareT - _stall) / 1.5, 1) : 0;
 
         // Aggressively fade and hide ALL secondary structures during stall
         // Everything collapses together — nose/TE/ribs/tips all gone by stallT ~0.4
@@ -6295,7 +6309,8 @@ class SceneManager {
             // ahead of the canopy before falling with the collapsed fabric.
             const flutterTime = (this.bodyAnim ? this.bodyAnim.windBuffet : 0) || performance.now() * 0.001;
             const pcFlareT = state.flareTimer || 0;
-            const pcStallT = pcFlareT > 2.5 ? Math.min((pcFlareT - 2.5) / 1.5, 1) : 0;
+            const _pcStall = state.stallStart || 7.0;
+            const pcStallT = pcFlareT > _pcStall ? Math.min((pcFlareT - _pcStall) / 1.5, 1) : 0;
 
             let pcZ, pcY, pcX;
             if (pcStallT > 0) {
@@ -7147,7 +7162,8 @@ class SceneManager {
                 // Instead of deforming individual vertices (creates spiky mess),
                 // scale/rotate the whole canopyGroup to look like crumpled fabric
                 const stallFlareT = state.flareTimer || 0;
-                const stallGroupT = stallFlareT > 2.5 ? Math.min((stallFlareT - 2.5) / 1.5, 1) : 0;
+                const _grpStall = state.stallStart || 7.0;  // same wind-dependent threshold as physics
+                const stallGroupT = stallFlareT > _grpStall ? Math.min((stallFlareT - _grpStall) / 1.5, 1) : 0;
                 if (stallGroupT > 0) {
                     // Canopy shrinks as it loses pressurization — fabric crumples into a wad
                     // Span (X) narrows as tips fold in, chord (Z) shortens, height (Y) flattens
@@ -7214,7 +7230,8 @@ class SceneManager {
 
                 // Stall collapse factor for suspension lines
                 const lineFlareT = state.flareTimer || 0;
-                const lineStallT = lineFlareT > 2.5 ? Math.min((lineFlareT - 2.5) / 1.5, 1) : 0;
+                const _lineStall = state.stallStart || 7.0;
+                const lineStallT = lineFlareT > _lineStall ? Math.min((lineFlareT - _lineStall) / 1.5, 1) : 0;
 
                 this.suspensionLines.forEach(line => {
                     line.visible = true;
