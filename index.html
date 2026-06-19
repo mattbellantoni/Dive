@@ -971,7 +971,7 @@
 <div class="ff-pos-btn" id="ff-btn-hd" data-pos="headdown"
     style="left:calc(50% + 90px);border:2px solid #f97316;" onclick="setFreefallPosition('headdown')">HEAD<br>DOWN</div>
 
-<div id="version-badge">v2.41 &middot; Jun 19, 2026</div>
+<div id="version-badge">v2.42 &middot; Jun 19, 2026</div>
 
 <!-- Flare toggle gauge: marker travels top→bottom over 2s of held flare -->
 <div id="flare-gauge">
@@ -1009,9 +1009,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ==================== WELCOME / SPLASH SCREEN ====================
-const APP_VERSION = 'v2.41';
+const APP_VERSION = 'v2.42';
 const APP_UPDATED = 'June 19, 2026';
-const APP_UPDATED_TIME = '4:15 PM ET'; // time of last update (US Eastern)
+const APP_UPDATED_TIME = '4:35 PM ET'; // time of last update (US Eastern)
 
 (function initWelcomeScreen() {
     const SEEN_KEY = 'skydivemobile_seen_version';
@@ -3339,11 +3339,14 @@ class PhysicsEngine {
         // the wing balloons up first, then dives, then settles.
         const release = (this.prevBrakeCmd || 0) - brakeCmd;
         if (release > 0.05) {
-            // Releasing toggles/flare to full flight: the canopy SURGES forward and DIVES
-            // (pitching you back behind it), then swings under and recovers. That is a
-            // nose-DOWN kick (negative phugoid), not a float. The deeper/faster the
-            // release, the more violent the surge.
-            this.phugoidVel -= release * 3.5;
+            // Releasing toggles/flare to full flight kicks off a SURGE. Real sequence
+            // (confirmed by canopy & paraglider sources): the wing first balloons UP
+            // briefly as it regains airspeed, THEN pitches overhead and DIVES forward to
+            // regain trim airspeed — you swing back behind it — before recovering. So it's
+            // a brief float FOLLOWED BY a larger dive, not a single oscillator swing (which
+            // would make the float dominate). Driven by the explicit profile applied below.
+            this.surgeMag = Math.min(Math.max(this.surgeMag || 0, release), 1.0);
+            this.surgeTimer = 0;
         }
         this.prevBrakeCmd = brakeCmd;
         // Wind gusts load the wing and trip the same flight cycle
@@ -3366,6 +3369,24 @@ class PhysicsEngine {
         if (!(input.flare || ft > 0.1)) {
             descRate *= (1 - this.phugoid * 0.40);   // float reduces descent, dive increases it
             finalFwdSpeed *= (1 - this.phugoid * 0.18); // dive speeds up, float bleeds speed
+        }
+
+        // ---- RELEASE SURGE: explicit float-THEN-dive profile (triggered above) ----
+        // Two Gaussian lobes over ~3s: a small early FLOAT (wing balloons up as it regains
+        // airspeed), then a larger, slightly later DIVE (pitches overhead and charges
+        // forward), then it settles. Dive lobe is bigger so the dive dominates — matching
+        // the real surge where you swing back behind a diving wing.
+        this.surgeVal = 0;  // exposed so the VISUAL canopy pitch can show the float-then-dive
+        if ((this.surgeMag || 0) > 0.01 && !(input.flare || ft > 0.1)) {
+            this.surgeTimer = (this.surgeTimer || 0) + dt;
+            const tt = this.surgeTimer;
+            const floatLobe = 0.45 * Math.exp(-Math.pow((tt - 0.35) / 0.28, 2)); // brief rise, first
+            const diveLobe  = 1.00 * Math.exp(-Math.pow((tt - 1.15) / 0.55, 2)); // bigger dive, after
+            const surge = this.surgeMag * (floatLobe - diveLobe);  // + = float/up, − = dive
+            this.surgeVal = surge;
+            descRate *= (1 - surge * 0.55);      // float flattens glide, dive steepens it hard
+            finalFwdSpeed *= (1 - surge * 0.28); // dive accelerates, float bleeds speed
+            if (tt > 3.5) this.surgeMag = 0;     // surge has settled — done
         }
 
         // Rear-riser slowdown applies to the final forward speed
@@ -7140,6 +7161,9 @@ class SceneManager {
                 // Only show it outside the scripted flare, which drives its own pitch.
                 if (!(input.flare || (state.flareTimer || 0) > 0.1)) {
                     canopyPitch += (state.phugoid || 0) * 0.25;
+                    // Release surge: nose pitches UP briefly (float) then DOWN (dive) so the
+                    // float-then-dive is visible, not just felt. (+surge = up, −surge = down.)
+                    canopyPitch += (state.surgeVal || 0) * 0.6;
                 }
 
                 // Gust reaction: canopy perturbation scaled by gust intensity²
